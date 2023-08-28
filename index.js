@@ -76,8 +76,9 @@ app.get('/dictionary/:id?', async (req, res) => {
 app.get('/praxis/:id?', async (req, res) => {
   const {rows} = await documents.list({include_docs: true})
   const keys = rows.filter(({id}) => req.params.id ? req.params.id == id : true)
-    .reduce((cur, { doc }) => [...cur, ...doc.dictionary], [])
-  const key = keys[Math.floor(Math.random()*keys.length)]
+    .reduce((cur, { doc }) => 
+    [...cur, ...doc.dictionary.map((key) => ({key, id: doc._id, title: doc.title}))], [])
+  const {key, id, title} = keys[Math.floor(Math.random()*keys.length)]
   const {docs} = await dictionary.find({
     selector: { origin: key },
   })
@@ -94,7 +95,7 @@ app.get('/praxis/:id?', async (req, res) => {
     .sort(() => 0.5 - Math.random())
       .map(({doc}) => doc)
 
-  res.status(200).json({key, docs, values, total: keys.length })
+  res.status(200).json({key, id, title, docs, values, total: keys.length })
 })
 
 app.post('/', ({files}, res) => {
