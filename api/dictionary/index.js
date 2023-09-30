@@ -9,11 +9,11 @@ router.get('/:id?', async (req, res) => {
       const { bookmark, limit } = req.query
       const {rows} = await documents.list({include_docs: true})
       const keys = rows.filter(({id}) => req.params.id ? req.params.id == id : true)
-        .reduce((cur, { doc }) => [...cur, ...doc.dictionary], [])
+        .reduce((cur, { doc }) => [...cur, ...doc.items], [])
       const data = await dictionary.find({
-        selector: { origin: { $in: keys } },
+        selector: { key: { $in: keys } },
         limit: +limit,
-        sort: ['origin'],
+        // sort: ['key'],
         bookmark,
       })
       res.status(200).json({...data, total: keys.length, limit: +limit })

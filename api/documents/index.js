@@ -30,9 +30,9 @@ router.post('/', async ({files}, res) => {
             .filter(unic)
       const doc = { title: file.name, items}
             // const items = await Promise.all(dictionary.map(translate))
-      const {id} = await documents.insert({doc})
+      const {id} = await documents.insert(doc)
       // Promise.all(items.map(addToDictionary))
-      res.status(200).json({...doc, id})
+      res.status(200).json({...doc, _id: id})
     })
   } catch(e) {
 

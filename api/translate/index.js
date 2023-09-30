@@ -5,48 +5,36 @@ const documents = nano.use('documents')
 const dictionary = nano.use('dictionary')
 const axios = require('axios')
 
-const translate = async (prefix) => {
-  const {data} = await axios.get(process.env.TRANSLATE_URL, {
-    params: { ...process.env.TRANSLATE_PARAMS, prefix }
-  })
-  return data
+const addToDictionary = async ({ prefix, heading, lingvoTranslations, lingvoSoundFileName }) => {
+  const doc = {key: prefix, src: heading, dst: lingvoTranslations, file: lingvoSoundFileName}
+  const {rows} = await dictionary.view('dictionary', 'dst', { key: lingvoTranslations})
+  const {id } = !rows.length ? await dictionary.insert(doc) : { ...rows[0]}
+  return {...doc, id}
 }
 
-const addToDictionary = async ({prefix, items}) => {
-  const values = items
-  .filter(({heading}) => /^[a-z_]+$/.test(heading))
-    // .filter(({heading}) => excludes(heading))
-    .filter(({source}) => source !== 'Social')
-    .filter(({heading}) => minLength(heading))
-      .map(({heading, lingvoSoundFileName, lingvoTranslations}) => ({
-        prefix,
-        origin: heading,
-        file: lingvoSoundFileName,
-        translate: lingvoTranslations
-      }))
-  return Promise.all(values.map(async (v) => {
-    const {docs} = await dictionary.find({ selector: { origin: v.origin}})
-    !docs.length && dictionary.insert(v)
-  }))
+const translate = async (prefix) => {
+  const {data} = await axios.get(process.env.TRANSLATE_URL, {
+    params: { prefix, srcLang: 1033, dstLang: 1049, pageSize: 10 }
+  })
+
+  const [item = {}] = data.items
+    .filter(({source}) => ['Premium'].includes(source))
+      .filter(({lingvoDictionaryName}) => ['LingvoUniversal (En-Ru)']
+        .includes(lingvoDictionaryName))
+          .filter(({heading}) => /^[a-z_]+$/.test(heading))
+  return addToDictionary( {...item, prefix})
 }
 
 router.get('/:id', async (req, res) => {
-    try {
-      const { items } = req.query
-      const {rows} = await documents.list({include_docs: true})
-      const keys = rows.filter(({id}) => req.params.id ? req.params.id == id : true)
-        .reduce((cur, { doc }) => [...cur, ...doc.dictionary], [])
-      const data = await dictionary.find({
-        selector: { origin: { $in: keys } },
-        limit: +limit,
-        sort: ['origin'],
-        bookmark,
-      })
-      res.status(200).json({...data, total: keys.length, limit: +limit })
-      } catch(e) {
-        console.error(e);
-        res.status(500).json(e)
-      }
+  try {
+    const {items} = await documents.get( req.params.id)
+    const translates = (await Promise.all(items.map(translate)))
+      .filter(({lingvoTranslations}) => !!lingvoTranslations)
+    res.status(200).json(await Promise.all(translates.map(translate)))
+  } catch(e) {
+      console.error(e);
+      res.status(500).json(e)
+  }
 })
 
 router.post('/:id', async ({params, body}, res) => {
