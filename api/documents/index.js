@@ -15,6 +15,15 @@ router.get('/', async (req, res) => {
   }
 })
 
+router.get('/:id', async ({params}, res) => {
+  try {
+  const doc = await documents.get(params.id)
+    res.status(200).json(doc)
+  } catch(e) {
+    res.status(500).json(e)
+  }
+})
+
 
 router.post('/', async ({files}, res) => {
   try {
