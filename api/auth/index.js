@@ -1,6 +1,7 @@
 const express = require('express')
 const router = express.Router()
-const { nano, sign, bcrypt } = require('../functions')
+const  { sign, bcrypt } = require('../functions')
+const { nano } = require('../db')
 const users = nano.use('users')
 const auth = {
   login: async ({email, password}) => {
@@ -15,6 +16,7 @@ const auth = {
       throw e.error
     }
   },
+  
   register: async ({email, password, confirm}) => {
     if (!password) throw 'incorect_password'
     if (!confirm) throw 'incorect_password'

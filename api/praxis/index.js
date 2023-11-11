@@ -1,22 +1,21 @@
 const express = require('express')
 const router = express.Router()
-const { nano } = require('../functions')
+const { nano } = require('../db')
 const dictionary = nano.use('dictionary')
 
-router.get('/:key', async ({params, body}, res) => {
-  const rmInt = Math.floor(Math.random() * (4 + 1))
+router.get('/:key', async ({params}, res) => {
   try {
   const {rows} = await dictionary
     .view('dictionary', 'src', {keys: [params.key], include_docs: true})
-  const {doc} = rows[Math.floor(Math.random()*rows.length)]
-  const {rows: random} = await dictionary.view('dictionary', 'random',{
-    startkey: Math.random(),
-    // endKey: Math.random(),
-    include_docs: true,
-    limit: 10
+  const {doc, key, value} = rows[Math.floor(Math.random()*rows.length)] || {}
+  const {rows: src} = await dictionary.view('dictionary', 'src')
+  const docs = src.sort(() => 0.5 - Math.random())
+    .filter(({ key}) => key !== params.key).slice(0, 4)
+  const items = [...docs, {key, value}].sort(() => 0.5 - Math.random())
+  .map((doc) => {
+    const [value] = doc.value.split(/,|;/).sort(() => 0.5 - Math.random())
+    return {...doc, value: value.trim()}
   })
-  const docs = random.map(({doc}) => doc).filter(({ key}) => key !== params.key).slice(0, 4)
-  const items = [...docs, doc].sort(() => 0.5 - Math.random())
   res.status(200).json({...doc, items})
   } catch(e) {
     console.log(e);

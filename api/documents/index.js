@@ -1,50 +1,48 @@
 const express = require('express')
 const router = express.Router()
-const { nano, unic, minLength, latinChars } = require('../functions')
+const { nano, view, insert } = require('../db')
 const documents = nano.use('documents')
-const pdfParse = require('pdf-parse')
 
+const translate = async ({keys}) => {
+  const reduce = ({obj}) => keys.reduce((cur, key) =>
+    [...cur, { key, value: obj[key]}], [])
+  return view('dictionary/list/values', { keys }).then(reduce)
+}
 
-
-router.get('/', async (req, res) => {
+router.get('/', async ({user_id}, res) => {
   try {
-    const {rows} = await documents.list({include_docs: true})
-    res.status(200).json(rows.map(({doc}) => doc))
+    const { values } = await view('documents/list/user_id', { key: user_id })
+    res.status(200).json(values)
+  } catch(e) {
+    console.log(e);
+    res.status(500).json(e)
+  }
+})
+
+router.get('/:id', require('./document.js'), async ({body}, res) => {
+  try {
+    const keys = await translate(body.document)
+    res.status(200).json({...body.document, keys })
   } catch(e) {
     res.status(500).json(e)
   }
 })
 
-router.get('/:id', async ({params}, res) => {
+router.post('/:id/:field', require('./document.js'), async ({body}, res) => {
   try {
-  const doc = await documents.get(params.id)
-    res.status(200).json(doc)
+    const { field } = params
+    const document = {...body.document, [field]: body[field] }
+    const { id } = await documents.insert(document)
+    res.status(200).json({...document, _id: id })
   } catch(e) {
     res.status(500).json(e)
   }
 })
 
-
-router.post('/', async ({files}, res) => {
+router.post('/upload', require('./pdfFile.js'), async ({body, user_id}, res) => {
   try {
-    if (!files && !files.pdfFile) {
-      res.status(404)
-    }
-    const file = files.pdfFile
-    pdfParse(file).then(async (result) => {
-      const items  = result.text.replace(/^[a-z_]+$/, " ").trim().split(" ")
-      .map((v) => v.toLowerCase())
-        .filter(minLength)
-          .filter(latinChars)
-            .filter(unic)
-      const doc = { title: file.name, items}
-            // const items = await Promise.all(dictionary.map(translate))
-      const {id} = await documents.insert(doc)
-      // Promise.all(items.map(addToDictionary))
-      res.status(200).json({...doc, _id: id})
-    })
+    res.status(200).json(await insert('documents', {...body.document, user_id}))
   } catch(e) {
-
     res.status(500).json(e)
   }
 })
