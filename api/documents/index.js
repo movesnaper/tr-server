@@ -5,7 +5,7 @@ const documents = nano.use('documents')
 
 const translate = async ({keys}) => {
   const reduce = ({obj}) => keys.reduce((cur, key) =>
-    [...cur, { key, value: obj[key]}], [])
+    [...cur, {...obj[key], key }], [])
   return view('dictionary/list/values', { keys }).then(reduce)
 }
 

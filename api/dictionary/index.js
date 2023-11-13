@@ -35,7 +35,7 @@ router.get('/random/:numbers', async ({params}, res) => {
 
 router.post('/translate', require('./translate.js'), ({ body }, res) => {
   try {
-    bulk('dictionary', body.values)
+    // bulk('dictionary', body.values)
     res.status(200).json(body.values)
   } catch(e) {
     console.error(e);
