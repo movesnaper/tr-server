@@ -1,21 +1,17 @@
 const express = require('express')
 const router = express.Router()
-const { nano, view, bulk } = require('../db')
+const { nano, view, insert } = require('../db')
 const documents = nano.use('documents')
 const dictionary = nano.use('dictionary')
 
 
 
-router.get('/:id?', async (req, res) => {
+router.get('/:key?', async ({query, params}, res) => {
     try {
-      const { bookmark, limit } = req.query
-      const {keys} = await documents.get(req.params.id, {include_docs: true})
-      const data = await dictionary.find({
-        selector: { _id: { $in: keys.map(({key}) => key) } },
-        limit: +limit,
-        bookmark,
-      })
-      res.status(200).json({...data, total: keys.length, limit: +limit })
+      const { key } = params
+      const { limit, skip } = query
+      const {values, offset, total} = await view('documents/results/values', { key, limit, skip })
+      res.status(200).json({values, offset, total})
       } catch(e) {
         console.error(e);
         res.status(500).json(e)
@@ -33,10 +29,11 @@ router.get('/random/:numbers', async ({params}, res) => {
   }
 })
 
-router.post('/translate', require('./translate.js'), ({ body }, res) => {
+router.get('/translate/:key', require('./translate.js'))
+
+router.post('/update/:id?', async({ body, params }, res) => {
   try {
-    // bulk('dictionary', body.values)
-    res.status(200).json(body.values)
+    res.status(200).json(await insert('dictionary', body, params.id))
   } catch(e) {
     console.error(e);
     res.status(500).json(e)    

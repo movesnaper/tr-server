@@ -13,7 +13,10 @@ const getKeys = (text, ...filters) => {
 const parse = async (file) => {
   const { text } = await pdfParse(file)
   const keys = getKeys(text, minLength(3), latinChars, unic)
-  return { title: file.name, keys }
+  const results = keys.reduce((cur, key) => {
+    return {...cur, [key]: ''}
+  }, {})
+  return { title: file.name, results }
 }
 
 

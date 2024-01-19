@@ -1,13 +1,7 @@
 const express = require('express')
 const router = express.Router()
-const { nano, view, insert } = require('../db')
-const documents = nano.use('documents')
+const { translate, get, view, insert, getInfo, getCard } = require('./functions')
 
-const translate = async ({keys}) => {
-  const reduce = ({obj}) => keys.reduce((cur, key) =>
-    [...cur, {...obj[key], key }], [])
-  return view('dictionary/list/values', { keys }).then(reduce)
-}
 
 router.get('/', async ({user_id}, res) => {
   try {
@@ -19,22 +13,76 @@ router.get('/', async ({user_id}, res) => {
   }
 })
 
-router.get('/:id', require('./document.js'), async ({body}, res) => {
+
+router.get('/:id/dictionary', async ({params}, res) => {
   try {
-    const keys = await translate(body.document)
-    res.status(200).json({...body.document, keys })
+    res.status(200).json(await get('documents', params.id))
   } catch(e) {
     res.status(500).json(e)
   }
 })
 
-router.post('/:id/:field', require('./document.js'), async ({body}, res) => {
+
+
+
+router.get('/:id', async ({params}, res) => {
   try {
-    const { field } = params
-    const document = {...body.document, [field]: body[field] }
-    const { id } = await documents.insert(document)
-    res.status(200).json({...document, _id: id })
+    const { id } = params
+    const document = await get('documents', id)
+    res.status(200).json(await getInfo(document))
   } catch(e) {
+    console.log(e);
+    res.status(500).json(e)
+  }
+})
+
+
+
+router.get('/:id/card', async ({params}, res) => {
+  try {
+    const { results = {} } = await get('documents', params.id)
+    const keys = Object.keys(results).filter((key) => key !== 'exclude')
+    const key = keys[Math.floor(Math.random()*keys.length)]
+    res.status(200).json({ key, value: results[key] })
+  } catch(e) {
+    console.log(e);
+    res.status(500).json(e)
+  }
+})
+
+router.get('/translate/:key/:value', async ({params}, res) => {
+  try {
+    const { key, value } = params
+    res.status(200).json(await translate[key](value))
+  } catch(e) {
+    console.log(e);
+    res.status(500).json(e)
+  }
+})
+
+
+router.get('/random/:numbers', async ({params}, res) => {
+  try {
+    const random = () => 0.5 - Math.random()
+    const { values } = await view('documents/results/values', {})
+    const results = values.filter(({value}) => value && value !== 'exclude')
+      .slice(0, params.numbers).sort(random)
+    res.status(200).json(results.map(({value}) => value))
+  } catch(e) {
+    console.error(e);
+    res.status(500).json(e)
+  }
+})
+
+
+router.post('/:id/result/:key', async ({body, params}, res) => {
+  try {
+    const { _id, dst, result, pos, trc, snd, exm } = body.value
+    const document = await get('documents', params.id)
+    const results = {...document.results, [params.key]: {_id, dst, result, pos, trc, snd, exm} }
+    res.status(200).json(await insert('documents', {...document, results}))
+  } catch(e) {
+    console.log(e);
     res.status(500).json(e)
   }
 })
