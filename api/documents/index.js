@@ -1,6 +1,6 @@
 const express = require('express')
 const router = express.Router()
-const { translate, get, view, insert, getInfo, getCard } = require('./functions')
+const { translate, get, view, insert, getInfo } = require('./functions')
 
 
 router.get('/', async ({user_id}, res) => {
@@ -12,6 +12,7 @@ router.get('/', async ({user_id}, res) => {
     res.status(500).json(e)
   }
 })
+
 
 
 router.get('/:id/dictionary', async ({params}, res) => {
@@ -33,7 +34,7 @@ router.get('/:id', async ({params}, res) => {
   } catch(e) {
     console.log(e);
     res.status(500).json(e)
-  }
+  } 
 })
 
 
@@ -77,9 +78,9 @@ router.get('/random/:numbers', async ({params}, res) => {
 
 router.post('/:id/result/:key', async ({body, params}, res) => {
   try {
-    const { _id, dst, result, pos, trc, snd, exm } = body.value
+    // const { _id, dst, result, pos, trc, snd, exm } = body.value
     const document = await get('documents', params.id)
-    const results = {...document.results, [params.key]: {_id, dst, result, pos, trc, snd, exm} }
+    const results = {...document.results, [params.key]: body.value }
     res.status(200).json(await insert('documents', {...document, results}))
   } catch(e) {
     console.log(e);

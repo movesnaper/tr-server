@@ -19,30 +19,37 @@ const translateByKey = async (key) => {
   return data.items.map(items)
 }
 
+
+const POS = {
+  'Adjective': 'adjective',
+  'Adverb': 'adjective-verb',
+  'Pronoun': 'pronoun',
+  'Verb': 'verb',
+  'Preposition': 'preposition',
+  'Conjunction': 'conjunction',
+  'Noun': 'noun',
+  'NounNeuter': 'noun-neuter'
+}
+
+const getSound = (fileName) => {
+  return fileName && `https://api.lingvolive.com/sounds?uri=LingvoUniversal%20(En-Ru)%2F${fileName}`
+}
+
 const translateById = async (id) => {
   const url = 'https://api.lingvolive.com/Translation/tutor-cards'
   const itemsMap = ({ 
     heading, 
-    partOfSpeech: pos, 
+    partOfSpeech, 
     translations: dst, 
     transcription: trc,
-    soundFileName: snd, 
+    soundFileName, 
     examples: exm }) => 
-  ({ _id: heading.toLowerCase().trim(), pos, dst, trc, exm, snd })
+  ({ _id: heading.toLowerCase().trim(), pos: POS[partOfSpeech] || partOfSpeech, dst, trc, exm, snd: getSound(soundFileName) })
   const params = { text: id, srcLang: 1033, dstLang: 1049 }
   const {data} = await axios.get(url, { params })
   return data && data.map(itemsMap)
 }
 
-
-
-const getCard = async (value) => {
-  // const dictionary = await get('dictionary', value._id) || await translateById(value)
-  return {...dictionary, ...value }
-  // const { values } = await view('documents/results/values', { keys: [key] })
-  // console.log(values);
-  // return values.find((v) => v.key === key )
-}
 
 module.exports = {
   get,
@@ -52,6 +59,5 @@ module.exports = {
     id: translateById,
     key: translateByKey
   },
-  getInfo,
-  getCard
+  getInfo
 }
