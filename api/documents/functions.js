@@ -1,16 +1,5 @@
 const { axios, get, view, insert } = require('../db')
 
-const getTotal = (cur, {result = 0}) => cur += result
-
-const getInfo = async ({ _id: id, title, results = {} }) => {
-  const keys = Object.keys(results).filter((key) => results[key] !== 'exclude')
-  const values = keys.filter((key) => !!results[key]).map((key) => results[key])
-  const total = (values.reduce(getTotal, 0) / values.length * 10).toFixed(2)
-  return { id, title, keys: keys.length, results: values.length, total }
-}
-
-
-
 const translateByKey = async (key) => {
   const items = ({ heading, lingvoTranslations: dst }) => 
   ({ _id: heading.toLowerCase().trim(), dst })
@@ -58,6 +47,5 @@ module.exports = {
   translate: {
     id: translateById,
     key: translateByKey
-  },
-  getInfo
+  }
 }

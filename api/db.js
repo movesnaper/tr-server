@@ -17,12 +17,12 @@ const get = async (dbName, id) => {
   return db.get(id)
 }
 
-const view = async (path, props) => {
+const view = async (path, props, reduce) => {
   const [dbName, designname , viewname] = path.split("/")
   const db = nano.use(dbName)
   const {rows, offset, total_rows} = await db.view(designname, viewname, props)
   const values = rows.map(({value}) => value)
-  return { offset, values, total: total_rows }
+  return reduce ? values.reduce(reduce, {}) : { offset, values, total: total_rows }
 }
 
 

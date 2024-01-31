@@ -1,20 +1,22 @@
 const express = require('express')
 const router = express.Router()
-const { nano, view, insert } = require('../db')
-const documents = nano.use('documents')
-const dictionary = nano.use('dictionary')
+const { view, insert } = require('../db')
+
+router.get('/excludes/:key?', require('./excludes.js'))
+router.get('/info/:id?',require('./document.js'), require('./info.js'))
 
 
-
-router.get('/:key?', async ({query, params}, res) => {
+router.get('/:id?', async ({query, params, user_id}, res) => {
     try {
-      const { key } = params
-      const { limit, skip } = query
-      const {values, offset, total} = await view('documents/results/values', { key, limit, skip })
-      res.status(200).json({values, offset, total})
-      } catch(e) {
-        console.error(e);
-        res.status(500).json(e)
+      const { id = user_id } = params
+      const {limit, mark } = query
+      const doc_id = params.id && 'doc_id'
+      const url = `documents/results/${doc_id || 'user_id'}`
+      const { values } = await view(url, { startkey: [ id, mark], endkey: [id, {}], limit })
+      res.status(200).json({ values })
+      } catch(err) {
+        console.error(err);
+        res.status(500).json({ err })
       }
 })
 
@@ -30,6 +32,7 @@ router.get('/random/:numbers', async ({params}, res) => {
 })
 
 router.get('/translate/:key', require('./translate.js'))
+
 
 router.post('/update/:id?', async({ body, params }, res) => {
   try {
