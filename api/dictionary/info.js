@@ -1,12 +1,5 @@
 const { view } = require('../db')
-
-const getTotal = (cur, {result = 0}) => cur += result
-
-const getInfo = (values) => {
-  const results = values.filter((v) => v)
-  const total = (results.reduce(getTotal, 0) / values.length * 10).toFixed(2)
-  return { keys: values.length, results: results.length, total }
-}
+const { getInfo } = require('../documents/functions')
 
 module.exports = async ({ params, user_id, body }, res) => {
   try {

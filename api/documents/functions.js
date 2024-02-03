@@ -38,12 +38,18 @@ const translateById = async (id) => {
   const {data} = await axios.get(url, { params })
   return data && data.map(itemsMap)
 }
-
+const getInfo = (values) => {
+  const results = values.filter((v) => v)
+  const totalResult = (cur, {result = 0}) => cur += result
+  const total = (results.reduce(totalResult, 0) / values.length * 10).toFixed(2)
+  return { keys: values.length, results: results.length, total }
+}
 
 module.exports = {
   get,
   view, 
   insert,
+  getInfo,
   translate: {
     id: translateById,
     key: translateByKey

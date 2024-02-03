@@ -13,11 +13,6 @@ const sign = (v, populate = (v) => v) =>
 
 const toLowerCase = (v) => v && v.toLowerCase().trim()
 
-
-
-
-
-
 module.exports = {
   verify,
   sign,

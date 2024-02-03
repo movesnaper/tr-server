@@ -1,13 +1,12 @@
 const pdfParse = require('pdf-parse')
 const { toLowerCase } = require('../functions')
-const { view } = require('../db')
 const { minLength, unic, latinChars, excludes } = require('../filters')
 
 const getKeys = (text) => 
   text.replace(/^[a-z_]+$/, ' ')
     .replace(/[\n\r"']/g,' ')
       .replace(/("|')/g,' ')
-        .split(/(?:,| )+/)
+        .split(/(?:,.| )+/)
 
 
 module.exports = async ({files, body}, res, next) => {

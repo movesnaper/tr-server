@@ -9,6 +9,7 @@ const auth = async (req, res, next) => {
       const { email } = await verify(token)
       req.user_id = email
       res.set('user_jwt', sign({ email }))
+      res.set('Access-Control-Expose-Headers', 'user_jwt')
       next()
     } catch(err){
       console.log(err);
