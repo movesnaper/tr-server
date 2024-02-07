@@ -4,7 +4,7 @@ module.exports = async ({ body, user_id }, res, next) => {
   try {
     const props = { startkey: [user_id], endkey: [user_id, {}]}
     const { values } = await view('documents/results/excludes', props)
-    body.excludes = values
+    body.excludes = values.map(({key}) => key)
     next()
   } catch(e) {
     res.status(500).json(e)

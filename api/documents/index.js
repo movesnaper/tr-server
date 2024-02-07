@@ -1,37 +1,19 @@
 const express = require('express')
 const router = express.Router()
 const { translate, get, view, insert, getInfo } = require('./functions')
+const { minLength, latinChars, unic } = require('../filters')
 
+const tmp = {}
 
 router.get('/', async ({user_id}, res) => {
   try {
     const { values } = await view('documents/list/user_id', { key: user_id })
-    const docs = values.map(({ _id: id, title, results }) => {
-      const info = getInfo(Object.values(results))
-      return { id, title, info }
-    })
+    const docs = [...values, tmp[user_id]].filter((v) => !!v)
+        .map(({ _id: id, title, results }) => {
+          const info = getInfo(Object.values(results))
+          return { id, title, info }
+        })
     res.status(200).json(docs)
-  } catch(e) {
-    console.log(e);
-    res.status(500).json(e)
-  }
-})
-router.get('/:id', require('./document.js'), async ({body}, res) => {
-  try {
-    res.status(200).json(body.document)
-  } catch(e) {
-    console.log(e);
-    res.status(500).json(e)
-  }
-})
-
-router.get('/card/:id?', require('./card.js'))
-
-
-router.get('/translate/:key/:value', async ({params}, res) => {
-  try {
-    const { key, value } = params
-    res.status(200).json(await translate[key](value))
   } catch(e) {
     console.log(e);
     res.status(500).json(e)
@@ -52,11 +34,36 @@ router.get('/random/:numbers', async ({params}, res) => {
   }
 })
 
-  router.post('/', async ({ body, user_id }, res) => {
+router.get('/card/:id?', require('./card.js'))
+router.get('/translate/:key/:value', async ({params}, res) => {
+  try {
+    const { key, value } = params
+    res.status(200).json(await translate[key](value))
+  } catch(e) {
+    console.log(e);
+    res.status(500).json(e)
+  }
+})
+
+router.get('/:id/text', async ({ params, query }, res) => {
+  try {
+    const { id } = params
+    const {limit, mark } = query
+    const url = `documents/results/keys`
+    const { values } = await view(url, { startkey: [ id, +mark ], endkey: [id, {}], limit })
+    res.status(200).json({values})
+  } catch(e) {
+    console.log(e);
+    res.status(500).json({err: true})
+  }
+})
+
+  router.post('/', async ({ user_id, body }, res) => {
     try {
-      const { title, results } = body
-      const { id } = await insert('documents', { title, results, user_id })
-      res.status(200).json({ ok: !!id })      
+      const { title } = body
+      await insert('documents', {...tmp[user_id], title, user_id })
+      tmp[user_id] = undefined
+      res.status(200).json({ ok: true })      
     } catch(err) {
       console.log(err);
       res.status(500).json({err})
@@ -82,11 +89,15 @@ router.get('/random/:numbers', async ({params}, res) => {
 
 router.post('/upload', require('./excludes.js'), require('./pdfFile.js'), require('./results.js'),   async ({body, user_id}, res) => {
   try {
-    const { pdfFile: doc, results: obj } = body
+    const { pdfFile, results: obj, excludes } = body
+    const { title, keys } = pdfFile || {}
     const reduce = (cur, key) => ({...cur, [key]: obj[key] || ''})
-    const results = doc.keys.reduce(reduce, {})
-    const info = getInfo(Object.values(results))
-    res.status(200).json({...doc, user_id, results, info })
+    const notExclude = ((key) => !excludes.includes(key))
+    const filter = ((...props) => [minLength(3), unic, latinChars, notExclude]
+      .every((filter) => filter(...props)))
+    const results = keys.map(({key}) => key).filter(filter).reduce(reduce, {})
+    tmp[user_id] = { title, keys, results }
+    res.status(200).json({ title, info: getInfo(Object.values(results)) })
   } catch(e) {
     res.status(500).json(e)
   }
