@@ -1,27 +1,30 @@
 const { view } = require('../db')
+// const tmp = {}
 
+const getValues = async (url, id, startkey) => {
+  const props = { startkey: [id, startkey], endkey: [id, 10], limit: 10}
+  const { values } = await view(url, props)
+  // const items = values.filter(({value}) => !value.exclude)
 
+  return values
+}
 
-// async ({params}, res) => {
-//   try {
-//     const { id } = params
-//     const props = {startkey: [id], endkey: [id, {}]}
-//     const { values } = await view('documents/results/values', props)
-//     res.status(200).json(values[Math.floor(Math.random()*values.length)])
-//   } catch(e) {
-//     console.log(e);
-//     res.status(500).json(e)
-//   }
-// }
+const getRandom = async (url, filter) => {
+  const {values} = await view(url, {})
+  return values.filter(filter)
+  .sort(() => 0.5 - Math.random())
+    .slice(0, 5).map(({value}) => value)
+}
 
-module.exports = async ({ params, user_id }, res) => {
+module.exports = async ({ params }, res) => {
+
   try {
-    const { id = user_id } = params
-    const doc_id = params.id && 'doc_id'
-    const url = `documents/results/${doc_id || 'user_id'}`
-    const { values } = await view(url, { startkey: [id], endkey: [id, {}] })
-    const random = Math.floor(Math.random()*values.length)
-    res.status(200).json(values[random])
+    const { id } = params
+    const url = `documents/dictionary/results`
+    const startkey = Math.floor(Math.random()*10)
+    const props = { startkey: [id, startkey], endkey: [id, 10], limit: 5}
+    const { values } = await view(url, props)
+    res.status(200).json(values.sort(() => 0.5 - Math.random()))
   } catch(err) {
     console.log(err)
     res.status(500).json({err})

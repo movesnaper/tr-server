@@ -25,6 +25,20 @@ const view = async (path, props, reduce) => {
   return reduce ? values.reduce(reduce, {}) : { offset, values, total: total_rows }
 }
 
+const update = async (dbName, id, fields) => {
+  try {
+    const db = await get(dbName, id)
+    const doc = Object.entries(fields(db))
+      .reduce((cur, [key, value]) => ({...cur, [key]: value}), db)
+    await insert(dbName, doc, id)
+    return doc
+  } catch (err) {
+    console.log(err);
+  }
+  // return insert(dbName, id, doc)
+  // const reduce = (cur, [key, value]) => ({...cur, [key]: value})
+  // const doc = Object.entries(fields).reduce(reduce, await get(dbName, id) || {})
+}
 
 
 module.exports = {
@@ -33,5 +47,6 @@ module.exports = {
   insert,
   view,
   axios,
-  get
+  get,
+  update
 }

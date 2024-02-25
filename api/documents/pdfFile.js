@@ -1,10 +1,14 @@
 const pdfParse = require('pdf-parse')
+const { keyIsValid } = require('../filters')
 
+// const key = str.replaceAll('[^\\x00-\\xFF]', '')
 const getKeys = (text) => {
   return text.replace(/[\n]/gm, '\n ').split(' ')
   .filter((v) => !!v)
-  .map((str) => ({ str, key: str.replace(/[,.?!:'"]/gm, '')
-  .trim().toLowerCase() }))
+  .map((str) => {
+    const key = str.replace(/[.,!?:;'"()-]/g, '').trim().toLowerCase()
+    return keyIsValid(key) ? { str, key } : str
+  })
 }
 
 module.exports = async ({files, body}, res, next) => {

@@ -1,4 +1,4 @@
-const { axios, get, view, insert } = require('../db')
+const { axios, get, view, insert, update } = require('../db')
 
 const translateByKey = async (key) => {
   const items = ({ heading, lingvoTranslations: dst }) => 
@@ -39,10 +39,10 @@ const translateById = async (id) => {
   return data && data.map(itemsMap)
 }
 const getInfo = (values) => {
-  const results = values.filter((v) => v)
-  const totalResult = (cur, {result = 0}) => cur += result
-  const total = (results.reduce(totalResult, 0) / values.length * 10).toFixed(2)
-  return { keys: values.length, results: results.length, total }
+  const keys = values.length
+  const results = (cur, {result = 0} = {}) => cur += result
+  const total = keys && (values.reduce(results, 0) / keys * 10).toFixed(2)
+  return { keys, total: total || 0 }
 }
 
 module.exports = {
@@ -53,5 +53,6 @@ module.exports = {
   translate: {
     id: translateById,
     key: translateByKey
-  }
+  },
+  update
 }
