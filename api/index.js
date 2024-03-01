@@ -4,7 +4,6 @@ const { sign, verify } = require('./functions')
 const { unic, unic2 } = require('./filters')
 const { get, update, view } = require('./db.js')
 
-
 const cash = {}
 
 const auth = async (req, res, next) => {
@@ -26,18 +25,20 @@ const userCash = async (req, res, next) => {
   const { user_id } = req
   cash[user_id] = cash[user_id] || await get('users', user_id)
   const { dictionary = [], refs = {} } = cash[user_id]
-  const obj = (cur, item) => item && {...cur, [item._id]: [...cur[item._id] || [],  item]}
-  const reduceRefs = (cur, {key, _id}) => {
-    return {...cur, [key]: _id}
-  }
+
     req.user_cash = {
+      ...cash,
       dictionary,
-      refs: dictionary.reduce(reduceRefs, {}),
-      // obj: dictionary.reduce(obj, {}),
+      update: async (index, value) => {
+        cash[user_id] = await update('users', user_id, ({dictionary = []}) => {
+          dictionary.splice(index, 1, value)
+          return {dictionary : dictionary.filter((v) => v)}
+        })
+      },
       add: async (key, value) => { 
         cash[user_id] = await update('users', user_id, ({ dictionary = [], refs = {} }) => {
           return {
-            refs: {...refs, [value._id]: [...refs[value._id] || [], key].filter(unic)},
+            refs: {...refs, [key]: value._id},
             dictionary: [...dictionary, value]
               .filter(unic2(({ _id, dst }) => _id + dst))
           }
@@ -52,14 +53,47 @@ const userCash = async (req, res, next) => {
         const {values} = await view(`users/dictionary/values`, {...props, keys})
         return values
       },
+      getKeys: async (id) => {
+        const props = { startkey: [ id ], endkey: [id, {}]}
+        const { values } = await view(`documents/dictionary/keys`, props)
+        return cash[id] = values
+      },
+      getValues: (keys) => {
+        const values = keys.map((key) => refs[key]).filter(unic).reduce((cur, key) => {
+          const items = dictionary.map((value, index) => ({index, value}))
+          return [...cur, ...items.filter(({value}) => value._id === key )]
+        }, [])
+        cash[user_id].values = values
+        return values
+      },
+      getObj: (keys) => {
+        return keys.filter(unic).reduce((cur, key) => {
+          const ref = refs[key]
+          return ref ? {...cur, [key]: dictionary.filter(({_id}) => _id === ref)} : cur
+        }, {})
+      },
       map: async (props) => {
         const {values} = await view(`users/dictionary/keys`, props)
         const reduce = (cur, { key, value }) => ({...cur, [key]: value})
         return values.reduce(reduce, {})
+      },
+      getDictionary: async (keys) => {
+        const { dictionary, refs } = await get('users', 'admin')
+        const entries = Object.entries(refs).filter(([key]) => keys.includes(key))
+        const values = entries.map(([key, value])=> value)
+        return cash[user_id] = await update('users', user_id, (doc) => {
+          const map = ({ _id, pos, dst, trc, exm, snd }) => ({  _id, pos, dst, trc, exm, snd  })
+          const items = dictionary.filter(({_id}) => values.includes(_id)).map(map)
+          return {
+            dictionary: [...doc.dictionary, ...items].filter(unic2(({ _id, dst }) => _id + dst)),
+            refs: entries.reduce((cur, [key, value]) => {
+              return cur[key] ? cur : {...cur, [key]: value }
+            }, {...doc.refs })
+          }
+        })   
       }
 
     }
-
     next()
 
 }

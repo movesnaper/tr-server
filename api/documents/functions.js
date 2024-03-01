@@ -1,4 +1,4 @@
-const { axios, get, view, insert, update } = require('../db')
+const { axios, get, view, insert, update, remove } = require('../db')
 
 const translateByKey = async (key) => {
   const items = ({ heading, lingvoTranslations: dst }) => 
@@ -54,5 +54,6 @@ module.exports = {
     id: translateById,
     key: translateByKey
   },
-  update
+  update,
+  remove
 }

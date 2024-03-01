@@ -7,6 +7,10 @@ const bulk = async (dbName, {docs}) => {
   return db.bulk({ docs})
 }
 
+const remove = (dbName, {docs}) => {
+  return bulk(dbName, { docs: docs.map((doc) => ({...doc, _deleted: true}))})
+}
+
 const insert = async (dbName, doc, id) => {
   const db = nano.use(dbName)
   return db.insert(doc, id)
@@ -48,5 +52,6 @@ module.exports = {
   view,
   axios,
   get,
-  update
+  update,
+  remove
 }
