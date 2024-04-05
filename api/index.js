@@ -53,25 +53,47 @@ const userCash = async (req, res, next) => {
         const {values} = await view(`users/dictionary/values`, {...props, keys})
         return values
       },
+      document: async (id) => {
+        const {keys} = cash[id] || await get('documents', id)
+        cash[id] = {...cash[id], keys}
+        return {
+          keys,
+          unic: (map) => {
+            const unicCash = (unic) => (cash[id] = {...cash[id], unic }).unic
+            return cash[id].unic || unicCash(keys.map(map).filter(unic))
+          },
+          sorted: () => {
+            const sort = ( a, b ) => (a > b) - (a < b)
+            const sortedCash = (sorted) => (cash[id] = {...cash[id], sorted }).sorted
+            return cash[id].sorted || sortedCash(cash[id].unic.sort(sort))
+          },
+          getObj: (keys) => {
+            return keys.filter(unic).reduce((cur, key) => {
+              const ref = refs[key]
+              return ref ? {...cur, [key]: dictionary.filter(({_id}) => _id === ref)} : cur
+            }, {})
+          },
+          getValues: (keys) => {
+            const values = keys.map((key) => refs[key]).filter(unic).reduce((cur, key) => {
+              const items = dictionary.map((value, index) => ({index, value}))
+              return [...cur, ...items.filter(({value}) => value._id === key )]
+            }, [])
+            return values
+          },
+        }
+      },
       getKeys: async (id) => {
-        const props = { startkey: [ id ], endkey: [id, {}]}
-        const { values } = await view(`documents/dictionary/keys`, props)
-        return cash[id] = values
+        const {keys} = await get('documents', id)
+        return cash[user_id] = keys.map(({key}) => key).filter(unic)
       },
       getValues: (keys) => {
         const values = keys.map((key) => refs[key]).filter(unic).reduce((cur, key) => {
           const items = dictionary.map((value, index) => ({index, value}))
           return [...cur, ...items.filter(({value}) => value._id === key )]
         }, [])
-        cash[user_id].values = values
         return values
       },
-      getObj: (keys) => {
-        return keys.filter(unic).reduce((cur, key) => {
-          const ref = refs[key]
-          return ref ? {...cur, [key]: dictionary.filter(({_id}) => _id === ref)} : cur
-        }, {})
-      },
+
       map: async (props) => {
         const {values} = await view(`users/dictionary/keys`, props)
         const reduce = (cur, { key, value }) => ({...cur, [key]: value})
