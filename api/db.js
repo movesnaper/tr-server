@@ -1,6 +1,10 @@
 const nano = require('nano')(process.env.COUCHDB)
 const axios = require('axios')
 
+const getUid = async (num) => {
+  const { uuids } = await nano.uuids(num)
+  return !num ? uuids[0] : uuids
+}
 
 const bulk = async (dbName, {docs}) => {
   const db = nano.use(dbName)
@@ -53,5 +57,6 @@ module.exports = {
   axios,
   get,
   update,
-  remove
+  remove,
+  getUid
 }
