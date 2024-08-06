@@ -4,7 +4,6 @@ const { remove, view, insert, getInfo, getUid } = require('./functions')
 const translate = require('./translate')
 const { unic, unic2 } = require('../filters.js')
 const tmp = {}
-// const cash = {}
 
 router.get('/', async ({user_id}, res) => {
   try {
@@ -22,7 +21,7 @@ router.get('/info/:docId', async ({ params, user_cash }, res) => {
   try {
     const {getValues} = user_cash(params.docId)
     const values =  await getValues()
-    res.status(200).json(getInfo(values.map(({value}) => value)))
+    res.status(200).json(getInfo(values))
   } catch(e) {
     console.error(e);
     res.status(500).json({err: true })
@@ -36,7 +35,7 @@ router.get('/card/:docId', async ({ params, user_cash }, res) => {
     const values = await getValues()
     const index = Math.floor(Math.random()*values.length)
     const card = {...values[index], index}
-    const random = getRandom(5).filter(({_id}) => _id !== card.value._id)
+    const random = getRandom(5).filter(({_id}) => _id !== card._id)
     res.status(200).json({ card, random })
   } catch(err) {
     console.log(err)
@@ -48,10 +47,11 @@ router.get('/dictionary/:docId', async ({ query, user_cash, params }, res) => {
   try {
     const { docId } = params
     const { limit, skip = 0 } = query
-    const { sorted } = user_cash(docId)
-    const predicate = ({value: a}, {value: b}) => (a._id > b._id) - (a._id < b._id)
-    const values = sorted(predicate).splice(skip, limit)
-    res.status(200).json({ values, skip: (+skip) + (+limit) })
+    const { getValues } = user_cash(docId)
+    const predicate = ({_id: a}, {_id: b}) => (a > b) - (a < b)
+    const values = await getValues()
+    const sorted = [...values].sort(predicate).splice(skip, limit)
+    res.status(200).json({ values: sorted, skip: (+skip) + (+limit) })
   } catch(err) {
     console.log(err)
     res.status(500).json({err})
@@ -62,9 +62,9 @@ router.get('/dictionary/:docId', async ({ query, user_cash, params }, res) => {
 router.post('/results/:docId', async ({ body, user_cash, params }, res) => {
   try {
     const { docId } = params
-    const { index, value } = body
+    const { value } = body
     const { setValues } = user_cash(docId)
-    setValues(value, index)
+    setValues(value)
     res.status(200).json({ ok: true })
   } catch(err) {
     console.log(err);
@@ -87,7 +87,6 @@ router.get('/translate/:service/:method/:key', async ({params, user_cash}, res) 
   }
 })
 
-
 router.get('/text/:docId', async ({ params, query, user_cash }, res) => {
   try {
     const { limit, skip = 0 } = query
@@ -106,32 +105,30 @@ router.get('/text/:docId', async ({ params, query, user_cash }, res) => {
   }
 })
 
-
-router.post('/text', async ({ body, user_cash }, res) => {
+router.post('/text/:docId', async ({ params, body, user_cash }, res) => {
   try {
     const { ref: key, key: value, values } = body
-    const { add } = user_cash()
-    const ids = await getUid(values.length)
-    const map = (v, index) => ({...v, _id: value, uid: ids[index]})
-    await add(key, value, values.map(map))
+    const { add } = user_cash(params.docId)
+
+    await add(key, value, values)
     res.status(200).json({ ok: true })
   } catch(err) {
     console.log(err);
     res.status(500).json({ err: true})
   }
 })
-  router.delete('/', async ({ body, user_id }, res) => {
-    try {
-      const { values } = await view('documents/list/user_id', { key: user_id })
-      const docs = values.filter(({_id}) => body.docs.includes(_id))
-      await remove('documents', {docs})
-      res.status(200).json({ ok: true })
-    } catch(err) {
-      console.log(err);
-      res.status(500).json({ err: true})
-    }
-    
-  })
+router.delete('/', async ({ body, user_id }, res) => {
+  try {
+    const { values } = await view('documents/list/user_id', { key: user_id })
+    const docs = values.filter(({_id}) => body.docs.includes(_id))
+    await remove('documents', {docs})
+    res.status(200).json({ ok: true })
+  } catch(err) {
+    console.log(err);
+    res.status(500).json({ err: true})
+  }
+  
+})
 
   router.post('/', async ({ user_id, body, user_cash }, res) => {
     try {
