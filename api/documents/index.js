@@ -109,8 +109,7 @@ router.post('/text/:docId', async ({ params, body, user_cash }, res) => {
   try {
     const { ref: key, key: value, values } = body
     const { add } = user_cash(params.docId)
-
-    await add(key, value, values)
+    await add(key, value, await getUid(values))
     res.status(200).json({ ok: true })
   } catch(err) {
     console.log(err);

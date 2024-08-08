@@ -2,7 +2,7 @@ const express = require('express')
 const router = express.Router()
 const { sign, verify } = require('./functions')
 const { unic } = require('./filters')
-const { get, update, getUid } = require('./db')
+const { get, update } = require('./db')
 
 const cash = {}
 
@@ -30,41 +30,35 @@ const userCash = async (req, res, next) => {
     return cash[user_id][docId] = await get('documents', docId)
   }
   
-  const getValues = async (docId) => {
+  const setCash = async (docId) => {
     const {keys} = cash[user_id][docId] || await getDocument(docId)
-    const unicKeys = keys.map(({key}) => refs[key])
+    const unicKeys = keys.map(({key}) => cash[user_id].refs[key])
     const predicate = ({_id}) => unicKeys.includes(_id)
-    return cash[user_id][docId].values = dictionary.filter(predicate)
-  }
+    return cash[user_id][docId].values = cash[user_id].dictionary.filter(predicate)
+  } 
 
-  const updateCash = async (docId, values) => {
-    cash[user_id][docId].values = values
-    const ids = values.map(({uid}) => uid)
-    const predicate = (({uid}) => !ids.includes(uid))
-    return update('users', user_id, ({dictionary}) => ({
-      refs: cash[user_id].refs,
-      dictionary: [...dictionary.filter(predicate), ...values]
-    }))
+  const updateCash = async (docId, obj) => {
+    cash[user_id] = Object.assign(cash[user_id], obj)
+    update('users', user_id, () => obj)
+    return setCash(docId)
   }
-
     req.user_cash = (docId) => {
+      const getValues = async () => cash[user_id][docId]?.values || await setCash(docId)
       return {
-        dictionary,
+        dictionary, 
+        getValues,
         getDocument: async () => cash[user_id][docId] || await getDocument(docId),
-        getValues: async () => cash[user_id][docId]?.values || await getValues(docId),
         add: async (key, value, values) => {
-          const ids = await getUid(values.length)
-          const uidValues = values.map((v, index) => ({...v, uid: [ids[index]]}))
           const predicate = ({_id}) => _id !== value
-          cash[user_id].refs = {...refs, [key]: value}
-          return updateCash(docId, [...cash[user_id][docId].values.filter(predicate), ...uidValues])
+          return updateCash(docId, {
+            refs: {...refs, [key]: value},
+            dictionary: [...dictionary.filter(predicate), ...values],
+          })
         },
         setValues: async (value) => {
-          const predicate = ({uid}) => uid === value.uid
-          const {values} = cash[user_id][docId]
-          const index = values.findIndex(predicate)
-          values.splice(index, 1, value)
-          updateCash(docId, values)
+          const index = dictionary.findIndex(({uid}) => uid === value.uid)
+          value._id ? dictionary.splice(index, 1, value) : dictionary.splice(index, 1)
+          return updateCash(docId, {dictionary})
         }, 
         getRandom: (number) => {
           const {length} = dictionary
@@ -72,10 +66,10 @@ const userCash = async (req, res, next) => {
             .filter(unic).map((index) => dictionary[index]).filter(({_id}) => !!_id)
         },
         getObj: (keys) => {
-          return keys.filter(unic).reduce((cur, key) => {
-            const ref = refs[key]
-            return ref ? {...cur, [key]: dictionary.filter(({_id}) => _id === ref)} : cur
-          }, {})
+          const {refs} = cash[user_id]
+          const predicate = (key) => ({_id}) => _id === refs[key]
+          return keys.filter(unic).reduce((cur, key) => refs[key] ? 
+            {...cur, [key]: dictionary.filter(predicate(key))} : cur, {})
         }
       }
     }
