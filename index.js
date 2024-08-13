@@ -6,7 +6,8 @@ const app = express()
 app.use(express.json()); //Used to parse JSON bodies
 app.use(express.urlencoded()); //Parse URL-encoded bodies
 
-app.use(cors({ origin: process.env.ORIGIN }))
+// app.use(cors({ origin: process.env.ORIGIN }))
+app.use(cors())
 app.use(fileUpload({ defCharset: 'utf8', defParamCharset: 'utf8' }))
 app.use('/', require('./api/index.js'))
 

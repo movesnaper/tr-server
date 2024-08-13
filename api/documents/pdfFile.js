@@ -2,9 +2,11 @@ const pdfParse = require('pdf-parse')
 const { keyIsValid } = require('../filters')
 
 const getKeys = (text) => {
-  return text.replace(/[\n]/gm, '\n ').split(' ')
+  return text.replace(/[\n]/gm, '\n ')
+  .replace(/[\t]/gm, ' ')
+  .split(' ')
   .filter((value, index, arr) => {
-    const next = value === "\n" && arr[index + 1] && arr[index + 1] === "\n"
+    // const next = value === "\n" && arr[index + 1] && arr[index + 1] === "\n"
     return !!value && !(value === "\n" && arr[index + 1] && arr[index + 1] === "\n")
   })
 

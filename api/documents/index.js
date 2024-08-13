@@ -98,7 +98,7 @@ router.get('/text/:docId', async ({ params, query, user_cash }, res) => {
         return { str: str + ' ', key }
       })
     const obj = getObj(values.map(({key}) => key))
-    res.status(200).json({ values, obj, skip: (+skip) + (+limit)  })
+    res.status(200).json({ values, obj, skip: (+skip) + (+limit), total: keys.length  })
   } catch(e) {
     console.log(e);
     res.status(500).json({err: true})
@@ -133,7 +133,7 @@ router.delete('/', async ({ body, user_id }, res) => {
     try {
       const { title } = body
       const { keys } = tmp[user_id]
-      user_cash.getDictionary(keys.map(({key}) => key).filter(unic))
+      // user_cash.getDictionary(keys.map(({key}) => key).filter(unic))
       await insert('documents', { keys, title, user_id })
       
       tmp[user_id] = undefined

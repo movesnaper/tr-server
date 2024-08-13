@@ -70,13 +70,28 @@ const userCash = async (req, res, next) => {
           const predicate = (key) => ({_id}) => _id === refs[key]
           return keys.filter(unic).reduce((cur, key) => refs[key] ? 
             {...cur, [key]: dictionary.filter(predicate(key))} : cur, {})
+        },
+        getDictionary: async (keys) => {
+          const { dictionary, refs } = await get('users', 'admin')
+          const entries = Object.entries(refs).filter(([key]) => keys.includes(key))
+          const values = entries.map(([key, value])=> value)
+          return cash[user_id] = await update('users', user_id, (doc) => {
+            const map = ({ _id, pos, dst, trc, exm, snd }) => ({  _id, pos, dst, trc, exm, snd  })
+            const items = dictionary.filter(({_id}) => values.includes(_id)).map(map)
+            return {
+              dictionary: [...doc.dictionary, ...items].filter(unic2(({ _id, dst }) => _id + dst)),
+              refs: entries.reduce((cur, [key, value]) => {
+                return cur[key] ? cur : {...cur, [key]: value }
+              }, {...doc.refs })
+            }
+          })   
         }
       }
     }
     next()
 
 }
-
+router.get('/', (req, res) => res.send('Hello World!'))
 router.use('/auth', require('./auth/index.js'))
 router.use('/documents', auth, userCash, require('./documents/index.js'))
 router.use('/dictionary', auth, userCash, require('./dictionary/index.js'))
