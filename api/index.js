@@ -32,9 +32,9 @@ const userCash = async (req, res, next) => {
   
   const setCash = async (docId) => {
     const {keys} = cash[user_id][docId] || await getDocument(docId)
-    const unicKeys = keys.map(({key}) => cash[user_id].refs[key])
+    const unicKeys = keys.map(({key}) => (cash[user_id].refs || {})[key])
     const predicate = ({_id}) => unicKeys.includes(_id)
-    return cash[user_id][docId].values = cash[user_id].dictionary.filter(predicate)
+    return cash[user_id][docId].values = (cash[user_id].dictionary || []).filter(predicate)
   } 
 
   const updateCash = async (docId, obj) => {
@@ -66,7 +66,7 @@ const userCash = async (req, res, next) => {
             .filter(unic).map((index) => dictionary[index]).filter(({_id}) => !!_id)
         },
         getObj: (keys) => {
-          const {refs} = cash[user_id]
+          const {refs = {}} = cash[user_id]
           const predicate = (key) => ({_id}) => _id === refs[key]
           return keys.filter(unic).reduce((cur, key) => refs[key] ? 
             {...cur, [key]: dictionary.filter(predicate(key))} : cur, {})

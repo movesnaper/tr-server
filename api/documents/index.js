@@ -24,7 +24,7 @@ router.get('/info/:docId', async ({ params, user_cash }, res) => {
     res.status(200).json(getInfo(values))
   } catch(e) {
     console.error(e);
-    res.status(500).json({err: true })
+    res.status(500).json({err: e })
   }
 })
 
