@@ -29,12 +29,14 @@ router.get('/info/:docId', async ({ params, user_cash }, res) => {
 })
 
 
-router.get('/card/:docId', async ({ params, user_cash }, res) => {
+router.get('/card/:docId/:mark', async ({ params, user_cash }, res) => {
   try {
-    const {getValues, getRandom} = user_cash(params.docId)
+    const {docId, mark} = params
+    const {getValues, getRandom} = user_cash(docId)
     const values = await getValues()
-    const index = Math.floor(Math.random()*values.length)
-    const card = {...values[index], index}
+    const cards = values.filter(({result = 0}) => result <= +mark)
+    const index = Math.floor(Math.random()*cards.length)
+    const card = cards[index] || values[Math.floor(Math.random()*values.length)]
     const random = getRandom(5).filter(({_id}) => _id !== card._id)
     res.status(200).json({ card, random })
   } catch(err) {
@@ -97,6 +99,9 @@ router.get('/text/:docId', async ({ params, query, user_cash }, res) => {
         const { str = item, key } = item
         return { str: str + ' ', key }
       })
+      // .filter(({str}, index, arr) => {
+      //   return /^[a-zA-Z .,:;'"!?\n-]+$/.test(str) && !(str.includes('\n') && (arr[index + 1]?.str || '').includes('\n'))
+      // })
     const obj = getObj(values.map(({key}) => key))
     res.status(200).json({ values, obj, skip: (+skip) + (+limit), total: keys.length  })
   } catch(e) {
