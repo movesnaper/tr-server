@@ -28,7 +28,6 @@ router.get('/info/:docId', async ({ params, user_cash }, res) => {
   }
 })
 
-
 router.get('/card/:docId/:mark', async ({ params, user_cash }, res) => {
   try {
     const {docId, mark} = params
@@ -95,13 +94,10 @@ router.get('/text/:docId', async ({ params, query, user_cash }, res) => {
     const {getDocument, getObj} = user_cash(params.docId)
     const {keys} = await getDocument()
     const values = [...keys].splice(skip, limit)
-      .map((item) => {
-        const { str = item, key } = item
-        return { str: str + ' ', key }
-      })
-      // .filter(({str}, index, arr) => {
-      //   return /^[a-zA-Z .,:;'"!?\n-]+$/.test(str) && !(str.includes('\n') && (arr[index + 1]?.str || '').includes('\n'))
-      // })
+    // .filter(({str}, index, arr) => {
+    //   return !(/[0-9\n]/.test(str) && /[a-z]/.test(arr[index + 1]?.str[0])) 
+    // })
+
     const obj = getObj(values.map(({key}) => key))
     res.status(200).json({ values, obj, skip: (+skip) + (+limit), total: keys.length  })
   } catch(e) {
@@ -139,7 +135,7 @@ router.delete('/', async ({ body, user_id }, res) => {
       const { title } = body
       const { keys } = tmp[user_id]
       // user_cash.getDictionary(keys.map(({key}) => key).filter(unic))
-      await insert('documents', { keys, title, user_id })
+      await insert('documents', { title, user_id, keys })
       
       tmp[user_id] = undefined
       res.status(200).json({ ok: true })
