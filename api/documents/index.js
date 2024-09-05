@@ -19,9 +19,9 @@ router.get('/', async ({user_id}, res) => {
 
 router.get('/info/:docId', async ({ params, user_cash }, res) => {
   try {
-    const {getValues} = user_cash(params.docId)
+    const {title, getValues} = user_cash(params.docId)
     const values =  await getValues()
-    res.status(200).json(getInfo(values))
+    res.status(200).json({...getInfo(values), title})
   } catch(e) {
     console.error(e);
     res.status(500).json({err: e })
@@ -29,15 +29,17 @@ router.get('/info/:docId', async ({ params, user_cash }, res) => {
 })
 
 router.get('/card/:docId/:mark', async ({ params, user_cash }, res) => {
+  const {docId, mark} = params
   try {
-    const {docId, mark} = params
     const {getValues, getRandom} = user_cash(docId)
     const values = await getValues()
-    const cards = values.filter(({result = 0}) => result <= +mark)
-    const index = Math.floor(Math.random()*cards.length)
-    const card = cards[index] || values[Math.floor(Math.random()*values.length)]
-    const random = getRandom(5).filter(({_id}) => _id !== card._id)
-    res.status(200).json({ card, random })
+    const getCard = (mark) => {
+      const cards = values.filter(({result = 0}) => result <= mark)
+      const index = Math.floor(Math.random()*cards.length)
+      return cards[index] ? {card: cards[index], mark, length: cards.length} 
+      : mark <=10 && getCard(mark + 1)
+    }
+    res.status(200).json({...getCard(+mark), random: getRandom(5) })
   } catch(err) {
     console.log(err)
     res.status(500).json({err})

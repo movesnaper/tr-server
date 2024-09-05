@@ -45,6 +45,8 @@ const userCash = async (req, res, next) => {
     req.user_cash = (docId) => {
       const getValues = async () => cash[user_id][docId]?.values || await setCash(docId)
       return {
+        ...cash[user_id][docId],
+        updateCash: (value) => updateCash(docId, value),
         dictionary, 
         getValues,
         getDocument: async () => cash[user_id][docId] || await getDocument(docId),
