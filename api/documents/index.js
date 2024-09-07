@@ -17,10 +17,9 @@ router.get('/', async ({user_id}, res) => {
   }
 })
 
-router.get('/info/:docId', async ({ params, user_cash }, res) => {
+router.get('/info/:docId', async ({ user_cash, params }, res) => {
   try {
-    const {title, getValues} = user_cash(params.docId)
-    const values =  await getValues()
+    const {title, values } =  await user_cash(params)
     res.status(200).json({...getInfo(values), title})
   } catch(e) {
     console.error(e);
@@ -28,18 +27,10 @@ router.get('/info/:docId', async ({ params, user_cash }, res) => {
   }
 })
 
-router.get('/card/:docId/:mark', async ({ params, user_cash }, res) => {
-  const {docId, mark} = params
+router.get('/card/:docId', async ({ user_cash, params }, res) => {
   try {
-    const {getValues, getRandom} = user_cash(docId)
-    const values = await getValues()
-    const getCard = (mark) => {
-      const cards = values.filter(({result = 0}) => result <= mark)
-      const index = Math.floor(Math.random()*cards.length)
-      return cards[index] ? {card: cards[index], mark, length: cards.length} 
-      : mark <=10 && getCard(mark + 1)
-    }
-    res.status(200).json({...getCard(+mark), random: getRandom(5) })
+    const {getCard, getRandom} = await user_cash(params)
+    res.status(200).json({card: getCard(), random: getRandom(5) })
   } catch(err) {
     console.log(err)
     res.status(500).json({err})
@@ -48,11 +39,9 @@ router.get('/card/:docId/:mark', async ({ params, user_cash }, res) => {
 
 router.get('/dictionary/:docId', async ({ query, user_cash, params }, res) => {
   try {
-    const { docId } = params
     const { limit, skip = 0 } = query
-    const { getValues } = user_cash(docId)
+    const { values = []} =  await user_cash(params)
     const predicate = ({_id: a}, {_id: b}) => (a > b) - (a < b)
-    const values = await getValues()
     const sorted = [...values].sort(predicate).splice(skip, limit)
     res.status(200).json({ values: sorted, skip: (+skip) + (+limit) })
   } catch(err) {
@@ -60,14 +49,12 @@ router.get('/dictionary/:docId', async ({ query, user_cash, params }, res) => {
     res.status(500).json({err})
   }
 })
-
+ 
 
 router.post('/results/:docId', async ({ body, user_cash, params }, res) => {
   try {
-    const { docId } = params
-    const { value } = body
-    const { setValues } = user_cash(docId)
-    setValues(value)
+    const { setValue} =  await user_cash(params)
+    setValue(body.value)
     res.status(200).json({ ok: true })
   } catch(err) {
     console.log(err);
@@ -78,7 +65,7 @@ router.post('/results/:docId', async ({ body, user_cash, params }, res) => {
 router.get('/translate/:service/:method/:key', async ({params, user_cash}, res) => {
   try {
     const { service, method, key } = params
-    const { dictionary } = user_cash()
+    const { dictionary} =  await user_cash(params)
     const result = [
       ...(method === 'id' ? dictionary.filter(({_id}) => _id === key) : []),
       ...await translate[service][method](key) || []
@@ -90,11 +77,10 @@ router.get('/translate/:service/:method/:key', async ({params, user_cash}, res) 
   }
 })
 
-router.get('/text/:docId', async ({ params, query, user_cash }, res) => {
+router.get('/text/:docId', async ({ query, user_cash, params }, res) => {
   try {
     const { limit, skip = 0 } = query
-    const {getDocument, getObj} = user_cash(params.docId)
-    const {keys} = await getDocument()
+    const {keys, getObj} = await user_cash(params)
     const values = [...keys].splice(skip, limit)
     // .filter(({str}, index, arr) => {
     //   return !(/[0-9\n]/.test(str) && /[a-z]/.test(arr[index + 1]?.str[0])) 
@@ -108,11 +94,11 @@ router.get('/text/:docId', async ({ params, query, user_cash }, res) => {
   }
 })
 
-router.post('/text/:docId', async ({ params, body, user_cash }, res) => {
+router.post('/text/:docId', async ({ body, user_cash, params }, res) => {
   try {
     const { ref: key, key: value, values } = body
-    const { add } = user_cash(params.docId)
-    await add(key, value, await getUid(values))
+    const {addValue} = await user_cash(params)
+    addValue(key, value, await getUid(values))
     res.status(200).json({ ok: true })
   } catch(err) {
     console.log(err);
@@ -129,10 +115,10 @@ router.delete('/', async ({ body, user_id }, res) => {
     console.log(err);
     res.status(500).json({ err: true})
   }
-  
+   
 })
 
-  router.post('/', async ({ user_id, body, user_cash }, res) => {
+  router.post('/', async ({ user_id, body }, res) => {
     try {
       const { title } = body
       const { keys } = tmp[user_id]
