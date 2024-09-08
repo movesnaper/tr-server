@@ -67,11 +67,11 @@ if ( docId && cash[user_id]._id !== docId)
             dictionary: [...dictionary.filter(predicate), ...values],
           })
         },
-        setValue: (value) => {
+        setValue: ({value}) => {
           const { dictionary = []} = cash[user_id]
           const index = dictionary.findIndex(({uid}) => uid === value.uid)
           value._id ? dictionary.splice(index, 1, value) : dictionary.splice(index, 1)
-          updateCash({dictionary, card: value})
+          return updateCash({dictionary, card: value})
         },
         getCard: () => {
           const {_id, result = 0} = cash[user_id].card || {}

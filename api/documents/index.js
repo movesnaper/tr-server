@@ -35,7 +35,7 @@ router.get('/card/:docId', async ({ user_cash, params }, res) => {
     console.log(err)
     res.status(500).json({err})
   }
-})
+}) 
 
 router.get('/dictionary/:docId', async ({ query, user_cash, params }, res) => {
   try {
@@ -54,8 +54,7 @@ router.get('/dictionary/:docId', async ({ query, user_cash, params }, res) => {
 router.post('/results/:docId', async ({ body, user_cash, params }, res) => {
   try {
     const { setValue} =  await user_cash(params)
-    setValue(body.value)
-    res.status(200).json({ ok: true })
+    res.status(200).json({ rerult: await setValue(body) })
   } catch(err) {
     console.log(err);
     res.status(500).json({ err: true})
