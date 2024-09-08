@@ -47,8 +47,10 @@ const userCash = async (req, res, next) => {
   }
 
     req.user_cash = async({docId}) => {
-if ( docId && cash[user_id]._id !== docId) 
-  Object.assign(cash[user_id], await get('documents', docId))
+      if ( docId && cash[user_id]._id !== docId) {
+        Object.assign(cash[user_id], await get('documents', docId))
+        getValues()
+      }
       return {
         ...cash[user_id],
         values: cash[user_id].values || getValues(),
