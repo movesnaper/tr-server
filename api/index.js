@@ -28,10 +28,10 @@ const userCash = async (req, res, next) => {
   cash[user_id] = cash[user_id] || await get('users', user_id)
 
   const getValues = () => {
-    const {keys, dictionary} = cash[user_id]
+    const {keys = [], dictionary = []} = cash[user_id]
     const unicKeys = keys.map(({key}) => (cash[user_id].refs || {})[key])
     const predicate = ({_id}) => unicKeys.includes(_id)
-    return cash[user_id].values = (dictionary || []).filter(predicate)
+    return cash[user_id].values = dictionary.filter(predicate)
   } 
 
   const updateCash = (value) => {
@@ -47,14 +47,15 @@ const userCash = async (req, res, next) => {
   }
 
     req.user_cash = async({docId}) => {
-      if ( docId && cash[user_id]._id !== docId) {
+      const updateValues = async () => {
         Object.assign(cash[user_id], await get('documents', docId))
-        getValues()
+        return getValues()
       }
+      if ( docId && cash[user_id]._id !== docId) await updateValues()
       return {
         ...cash[user_id],
         values: cash[user_id].values || getValues(),
-        getValues,
+        updateValues,
         getObj: (keys) => {
           const {refs = {}, dictionary = []} = cash[user_id]
           const predicate = (key) => ({_id}) => _id === refs[key]

@@ -1,16 +1,17 @@
 const express = require('express')
 const router = express.Router()
-const { remove, view, insert, getInfo, getUid } = require('./functions')
+const { remove, view, update, getInfo, getUid } = require('./functions')
 const translate = require('./translate')
-const { unic, unic2 } = require('../filters.js')
+const { keyIsValid, unic2 } = require('../filters.js')
+// const { key } = require('./translate/lingvo.js')
 const tmp = {}
 
 router.get('/', async ({user_id}, res) => {
   try {
-    const { values } = await view('documents/list/user_id', { key: user_id })
+    const { values } = await view('documents/list/user_id', {})
     const docs = [...values, tmp[user_id]].filter((v) => !!v)
-      .map(({ _id: id, title }) => ({ id, title }))
-    res.status(200).json(docs)
+      .map(({ _id: id, title, desc, user_id: user }) => ({ id, title, desc, user }))
+    res.status(200).json({values: docs})
   } catch(e) {
     console.log(e);
     res.status(500).json(e)
@@ -74,12 +75,12 @@ router.get('/translate/:service/:method/:key', async ({params, user_cash}, res) 
     console.log(e);
     res.status(500).json(e)
   }
-})
+}) 
 
 router.get('/text/:docId', async ({ query, user_cash, params }, res) => {
   try {
     const { limit, skip = 0 } = query
-    const {keys, getObj} = await user_cash(params)
+    const {keys = [], getObj} = await user_cash(params)
     const values = [...keys].splice(skip, limit)
     // .filter(({str}, index, arr) => {
     //   return !(/[0-9\n]/.test(str) && /[a-z]/.test(arr[index + 1]?.str[0])) 
@@ -103,10 +104,25 @@ router.post('/text/:docId', async ({ body, user_cash, params }, res) => {
     console.log(err);
     res.status(500).json({ err: true})
   }
-})
+}) 
+
+router.post('/text/edit/:docId', async ({ body, user_cash, params }, res) => {
+  try {
+    const { values, mark, limit } = body
+    const {keys, updateValues} = await user_cash(params)
+    keys.splice(+ mark, limit, ...values)    
+    await update('documents', params.docId, () => ({ keys })).then(updateValues)
+    res.status(200).json({ ok: true })
+  } catch(err) {
+    console.log(err);
+    res.status(500).json({ err: true}) 
+  }
+}) 
+
 router.delete('/', async ({ body, user_id }, res) => {
   try {
-    const { values } = await view('documents/list/user_id', { key: user_id })
+    // const { values } = await view('documents/list/user_id', { key: user_id })
+    const { values } = await view('documents/list/user_id', {})
     const docs = values.filter(({_id}) => body.docs.includes(_id))
     await remove('documents', {docs})
     res.status(200).json({ ok: true })
@@ -119,12 +135,8 @@ router.delete('/', async ({ body, user_id }, res) => {
 
   router.post('/', async ({ user_id, body }, res) => {
     try {
-      const { title } = body
-      const { keys } = tmp[user_id]
-      // user_cash.getDictionary(keys.map(({key}) => key).filter(unic))
-      await insert('documents', { title, user_id, keys })
-      
-      tmp[user_id] = undefined
+      const { id, title, desc } = body
+      await update('documents', id, () => ({title, desc, user_id}))
       res.status(200).json({ ok: true })
     } catch(err) {
       console.log(err);
@@ -134,10 +146,12 @@ router.delete('/', async ({ body, user_id }, res) => {
 
 router.post('/upload', require('./pdfFile.js'), async ({body, user_id}, res) => {
   try {
-    const { title, keys } = body?.pdfFile || {}
-    tmp[user_id] = { title, keys }
-    const keyLength = keys.filter(({key}) => key)
-    res.status(200).json({ title, keys: keyLength })
+    const { title, keys = [] } = body?.pdfFile || {}
+    // .filter(unic2(({dst}) => dst))
+    const {length} = keys.filter(({key}) => keyIsValid(key)).filter(unic2(({key}) => key))
+    const desc = `${user_id} keys: ${length}`
+    const {id} = await update('documents', false, () => ({title, desc, keys, user_id}))
+    res.status(200).json({ id, title, desc, user: user_id })
   } catch(e) {
     console.log(e);
     res.status(500).json({err: true})

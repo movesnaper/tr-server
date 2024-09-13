@@ -2,13 +2,13 @@ const pdfParse = require('pdf-parse')
 const { keyIsValid } = require('../filters')
 
 const getKeys = (text) => {
-  return text.replace(/[\n]/gm, '\n ')
-  .replace(/[\t-]/gm, ' ')
-  .split(' ')
+  // return text.replace(/[\n]/gm, '\n')
+  // .replace(/[\t-]/gm, ' ')
+  return  text.split(' ')
 
-  .filter((value, index, arr) => {
-    return !!value && !(value === "\n" && arr[index + 1] && arr[index + 1] === "\n")
-  })
+  // .filter((value, index, arr) => {
+  //   return !!value && !(value === "\n" && arr[index + 1] && arr[index + 1] === "\n")
+  // })
 
   .map((str) => {
     const key = str.replace(/[.,!?:;'"()-]/g, '')
@@ -26,13 +26,13 @@ module.exports = async ({files, body}, res, next) => {
     const { str = item, key } = item
     return { str: str + ' ', key }
   })
-  .filter(({str}, index, arr) => {
-    const exp = /[0-9\n]/
-    return /^[a-zA-Z0-9 .,:;'"!?\n-]+$/.test(str) 
-      && !(exp.test(str) && exp.test(arr[index + 1]?.str))
-       && !(exp.test(str) && /[a-z]/.test(arr[index + 1]?.str[0])) 
-        // && !(/\d\n/.test(str))
-  })
+  // .filter(({str}, index, arr) => {
+  //   const exp = /[0-9\n]/
+  //   return // /^[a-zA-Z0-9 .,:;'"!?\n-]+$/.test(str) 
+  //     // && !(exp.test(str) && exp.test(arr[index + 1]?.str))
+  //     //  && !(exp.test(str) && /[a-z]/.test(arr[index + 1]?.str[0])) 
+  //       // && !(/\d\n/.test(str))
+  // })
     body.pdfFile = { title: file.name, keys }
     next()
   } catch(e) {
