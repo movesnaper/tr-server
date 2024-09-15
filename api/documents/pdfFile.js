@@ -2,9 +2,10 @@ const pdfParse = require('pdf-parse')
 const { keyIsValid } = require('../filters')
 
 const getKeys = (text) => {
-  // return text.replace(/[\n]/gm, '\n')
-  // .replace(/[\t-]/gm, ' ')
-  return  text.split(' ')
+  return text
+  .replace(/[\n]/gm, ' \n')
+  .replace(/[\t-]/gm, ' ')
+  .split(' ')
 
   // .filter((value, index, arr) => {
   //   return !!value && !(value === "\n" && arr[index + 1] && arr[index + 1] === "\n")
@@ -33,7 +34,7 @@ module.exports = async ({files, body}, res, next) => {
   //     //  && !(exp.test(str) && /[a-z]/.test(arr[index + 1]?.str[0])) 
   //       // && !(/\d\n/.test(str))
   // })
-    body.pdfFile = { title: file.name, keys }
+    body.pdfFile = { title: file.name, keys, text }
     next()
   } catch(e) {
     console.log(e);
