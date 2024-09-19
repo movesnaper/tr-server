@@ -28,19 +28,23 @@ router.get('/info/:docId', async ({ user_cash, params }, res) => {
   }
 })
 
+
 router.get('/merge/:docId', async ({ user_cash, params }, res) => {
   try {
     const {keys, user_id, merge } =  await user_cash(params)
-    const {refs, dictionary} = await get('users', user_id)
-    const objRefs = (cur, key) => ({...cur, [key]: refs[key]})
-    keys.map(({key}) => key).reduce(objRefs, {})
-    await merge(keys.map(({key}) => key).reduce(objRefs, {}), dictionary)
+    const {refs: user_refs, dictionary} = await get('users', user_id)
+    const objRefs = (cur, {key}) => ({...cur, [key]: user_refs[key]})
+    const refs = keys.reduce(objRefs, {})
+    const ids = Object.values(refs).filter(unic)
+    const values = dictionary.filter(({_id}) => ids.includes(_id))
+    const result = value => ({...value, result: undefined})
+    await merge(refs, values.map(result))
     res.status(200).json({ok: true})
   } catch(e) {
     console.error(e)
     res.status(500).json({err: e }) 
   }
-})
+}) 
 
 router.get('/card/:docId', async ({ user_cash, params }, res) => {
   try {
@@ -142,7 +146,7 @@ router.delete('/', async ({ body, user_id }, res) => {
     console.log(err);
     res.status(500).json({ err: true})
   }
-   
+  
 })
 
 router.post('/upload', require('./pdfFile.js'), async ({body, user_id}, res) => {
@@ -150,7 +154,7 @@ router.post('/upload', require('./pdfFile.js'), async ({body, user_id}, res) => 
     const { title, keys = [] } = body?.pdfFile || {}
     const {length} = keys.filter(({key}) => keyIsValid(key)).filter(unic2(({key}) => key))
     const desc = `${user_id} keys: ${length}`
-    const {id} = await update('documents', false, () => ({title, desc, keys, user_id}))
+    const {_id: id} = await update('documents', false, () => ({title, desc, keys, user_id}))
     res.status(200).json({ id, title, desc, user: user_id })
   } catch(e) {
     console.log(e);

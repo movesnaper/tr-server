@@ -43,34 +43,27 @@ const userCash = async (req, res, next) => {
   const getCard = (mark, cardId) => {
     const { values} = cash[user_id]
     const cards = values.filter(({ _id, result = 0}) => result <= mark && _id !== cardId )
-    return  cards[Math.floor(Math.random()*cards.length)] || getCard(mark + 1)
+    return  !!cards.length && (cards[Math.floor(Math.random()*cards.length)] || getCard(mark + 1))
   }
-
+ 
     req.user_cash = async({docId}) => {
       const updateValues = async () => {
-        try {
           Object.assign(cash[user_id], await get('documents', docId))
           return getValues()
-        } catch(err) {
-          console.error(err);
-          return res.status(404).json({ err })         
-        }
       }
       if ( docId && cash[user_id]._id !== docId) await updateValues()
       return {
         ...cash[user_id],
         values: cash[user_id].values || getValues(),
-        merge: async(refs, dictionary) => {
-          const userDictionary = (cur, key) => [...cur,...dictionary
-            .filter(({_id}) => _id === key).map((v) => ({...v, result: undefined}))]
-          await update('users', user_id, ({refs: user_refs, dictionary = [] }) =>{
-            const values = Object.values(refs).filter(unic).reduce(userDictionary, dictionary)
+        merge: async (user_refs, values) => {
+          const getStr = ({_id, dst}) => _id + dst
+          return update('users', user_id, ({refs, dictionary = [] }) => {
             return {
-              refs: {...refs, ...user_refs}, 
-              dictionary: values.filter(unic2(({_id, dst}) => _id + dst))
+              refs: Object.assign(user_refs, refs), 
+              dictionary: [...dictionary, ...values].filter(unic2(getStr))
             }
           })
-          cash[user_id] = undefined
+          .then((value) => cash[user_id] = value)
         },
         updateValues, 
         getObj: (keys, {refs = {}, dictionary = []} = cash[user_id]) => {

@@ -36,8 +36,9 @@ const view = async (path, props, reduce) => {
 const update = async (dbName, id, fields) => {
   try {
     const db = id ? await get(dbName, id) : {}
-    const doc = fields(db)
-    return insert(dbName, Object.assign(db, doc), id)
+    const doc = Object.assign(db, fields(db))
+    const {id: _id, rev: _rev} = await insert(dbName, doc, id)
+    return {...db, _id, _rev}
   } catch (err) {
     console.log(err);
   }
