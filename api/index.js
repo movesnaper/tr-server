@@ -1,7 +1,7 @@
 const express = require('express')
 const router = express.Router()
 const { sign, verify } = require('./functions')
-const { unic } = require('./filters')
+const { unic, unic2 } = require('./filters')
 const { get, update } = require('./db')
 
 const cash = {}
@@ -48,16 +48,32 @@ const userCash = async (req, res, next) => {
 
     req.user_cash = async({docId}) => {
       const updateValues = async () => {
-        Object.assign(cash[user_id], await get('documents', docId))
-        return getValues()
+        try {
+          Object.assign(cash[user_id], await get('documents', docId))
+          return getValues()
+        } catch(err) {
+          console.error(err);
+          return res.status(404).json({ err })         
+        }
       }
       if ( docId && cash[user_id]._id !== docId) await updateValues()
       return {
         ...cash[user_id],
         values: cash[user_id].values || getValues(),
-        updateValues,
-        getObj: (keys) => {
-          const {refs = {}, dictionary = []} = cash[user_id]
+        merge: async(refs, dictionary) => {
+          const userDictionary = (cur, key) => [...cur,...dictionary
+            .filter(({_id}) => _id === key).map((v) => ({...v, result: undefined}))]
+          await update('users', user_id, ({refs: user_refs, dictionary = [] }) =>{
+            const values = Object.values(refs).filter(unic).reduce(userDictionary, dictionary)
+            return {
+              refs: {...refs, ...user_refs}, 
+              dictionary: values.filter(unic2(({_id, dst}) => _id + dst))
+            }
+          })
+          cash[user_id] = undefined
+        },
+        updateValues, 
+        getObj: (keys, {refs = {}, dictionary = []} = cash[user_id]) => {
           const predicate = (key) => ({_id}) => _id === refs[key]
           return keys.filter(unic).reduce((cur, key) => refs[key] ? 
             {...cur, [key]: dictionary.filter(predicate(key))} : cur, {})
