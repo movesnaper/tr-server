@@ -43,7 +43,7 @@ router.get('/merge/:docId', async ({ user_cash, params }, res) => {
   } catch(e) {
     console.error(e)
     res.status(500).json({err: e }) 
-  }
+  } 
 }) 
 
 router.get('/card/:docId', async ({ user_cash, params }, res) => {

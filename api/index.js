@@ -43,7 +43,7 @@ const userCash = async (req, res, next) => {
   const getCard = (mark, cardId) => {
     const { values} = cash[user_id]
     const cards = values.filter(({ _id, result = 0}) => result <= mark && _id !== cardId )
-    return  !!cards.length && (cards[Math.floor(Math.random()*cards.length)] || getCard(mark + 1))
+    return  !!cards.length ? cards[Math.floor(Math.random()*cards.length)] : mark <= 10 && getCard(mark + 1)
   }
  
     req.user_cash = async({docId}) => {
