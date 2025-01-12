@@ -20,8 +20,8 @@ router.get('/', async ({user_id}, res) => {
 
 router.get('/info/:docId', async ({ user_cash, params }, res) => {
   try {
-    const {title, values, user_id } =  await user_cash(params)
-    res.status(200).json({...getInfo(values), title, user_id})
+    const {title, values, user_id, keys } =  await user_cash(params)
+    res.status(200).json({...getInfo(values), title, user_id, totalKeys: keys.length})
   } catch(e) {
     console.error(e);
     res.status(500).json({err: e })
@@ -90,7 +90,7 @@ router.get('/translate/:service/:method/:key', async ({params, user_cash}, res) 
     res.status(200).json(result)
   } catch(e) {
     console.log(e);
-    res.status(500).json(e)
+    // res.status(500).json(e)
   }
 }) 
 
@@ -104,7 +104,7 @@ router.get('/text/:docId', async ({ query, user_cash, params }, res) => {
     // })
 
     const obj = getObj(values.map(({key}) => key))
-    res.status(200).json({ values, obj, skip: (+skip) + (+limit), total: keys.length  })
+    res.status(200).json({ values, obj, skip: (+skip) + (+limit) })
   } catch(e) {
     console.log(e);
     res.status(500).json({err: true})
@@ -125,9 +125,9 @@ router.post('/text/:docId', async ({ body, user_cash, params }, res) => {
 
 router.post('/text/edit/:docId', async ({ body, user_cash, params }, res) => {
   try {
-    const { values, mark, limit } = body
+    const { mark, start, end } = body
     const {keys, updateValues} = await user_cash(params)
-    keys.splice(+ mark, limit, ...values)    
+    keys.splice(mark + start, end - start + 1)    
     await update('documents', params.docId, () => ({ keys })).then(updateValues)
     res.status(200).json({ ok: true })
   } catch(err) {

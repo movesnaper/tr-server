@@ -5,8 +5,15 @@ const translateByKey = async (key) => {
   const items = ({ heading, lingvoTranslations: dst }) => 
   ({ _id: heading.toLowerCase().trim(), dst })
   const params = { prefix: key, srcLang: 1033, dstLang: 1049, pageSize: 10 }
+try {
   const {data} = await axios.get(process.env.TRANSLATE_URL, { params })
   return data.items.map(items).filter(({_id}) => !!_id)
+}catch(e) {
+  // console.error(e);
+  console.log('errot');
+  
+  
+}
 }
 
 const POS = {
