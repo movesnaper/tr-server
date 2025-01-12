@@ -1,17 +1,16 @@
 const express = require('express')
 const router = express.Router()
-const { get, remove, view, update, getInfo, getUid } = require('./functions')
+const { get, remove, update, getInfo, getUid } = require('./functions')
 const translate = require('./translate')
 const { keyIsValid, unic2, unic } = require('../filters.js')
-// const { key } = require('./translate/lingvo.js')
 const tmp = {}
 
 router.get('/', async ({user_id}, res) => {
   try {
-    const { values } = await view('documents/list/user_id', {})
-    const docs = [...values, tmp[user_id]].filter((v) => !!v)
+    const {rows} = await get('documents')
+    const values = [...rows.map(({doc}) => doc), tmp[user_id]].filter((v) => !!v)
       .map(({ _id: id, title, desc, user_id: user }) => ({ id, title, desc, user }))
-    res.status(200).json({values: docs})
+    res.status(200).json({values})
   } catch(e) {
     console.log(e);
     res.status(500).json(e)
@@ -138,9 +137,9 @@ router.post('/text/edit/:docId', async ({ body, user_cash, params }, res) => {
 
 router.delete('/', async ({ body, user_id }, res) => {
   try {
-    const { values } = await view('documents/list/user_id', {})
-    const docs = values.filter(({_id}) => body.docs.includes(_id))
-    await remove('documents', {docs})
+    const { rows } = await get('documents')
+    const docs = rows.filter(({id}) => body.docs.includes(id))
+    await remove('documents', {docs: docs.map(({doc}) => doc)})
     res.status(200).json({ ok: true })
   } catch(err) {
     console.log(err);

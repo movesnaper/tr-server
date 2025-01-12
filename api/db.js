@@ -22,7 +22,7 @@ const insert = async (dbName, doc, id) => {
 
 const get = async (dbName, id) => {
   const db = nano.use(dbName)
-  return db.get(id)
+  return id? db.get(id) : db.list({include_docs: true})
 }
 
 const view = async (path, props, reduce) => {
