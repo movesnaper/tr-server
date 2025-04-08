@@ -25,74 +25,101 @@ const auth = async (req, res, next) => {
 
 const userCash = async (req, res, next) => {
   const { user_id } = req
-  cash[user_id] = cash[user_id] || await get('users', user_id)
+  cash.admin =  cash['admin'] || await get('users', 'admin')
 
-  const getValues = () => {
-    const {keys = [], dictionary = []} = cash[user_id]
-    const unicKeys = keys.map(({key}) => (cash[user_id].refs || {})[key])
-    const predicate = ({_id}) => unicKeys.includes(_id)
-    return cash[user_id].values = dictionary.filter(predicate)
-  } 
-
-  const updateCash = (value) => {
-    const {refs, dictionary} = Object.assign(cash[user_id], value)
-    update('users', user_id, () => ({refs, dictionary}))
-    getValues()
-  }
-
-  const getCard = (mark, cardId) => {
-    const { values} = cash[user_id]
-    const cards = values.filter(({ _id, result = 0}) => result <= mark && _id !== cardId )
-    return  !!cards.length ? cards[Math.floor(Math.random()*cards.length)] : mark <= 10 && getCard(mark + 1)
+  const getCard = (values, mark) => {
+    const cards = values.filter(({ result = 0}) => result <= mark)
+    return  !!cards.length ? cards[Math.floor(Math.random()*cards.length)] 
+    : mark <= 10 && getCard(values, mark + 1)
   }
  
-    req.user_cash = async({docId}) => {
-      const updateValues = async () => {
-          Object.assign(cash[user_id], await get('documents', docId))
-          return getValues()
+  const getValues = (keys, {refs, dictionary, results}) => {
+    const objValues = Object.values(dictionary)
+    return keys.map((key) => refs[key] || key).filter(unic).reduce((cur, key) => {
+      const values = objValues.filter((v) => key === v?._id)
+      if (!values.length) values.push({ key, _id: key })
+      return [...cur, ...values.map((v) => ({...v, result: results[v.uid]})) ]
+    }, [])
+  }
+
+  const getCash = async(func) => {
+    const getUser = ({refs, dictionary, results = {} }) => ({refs, dictionary, results})
+    return func(cash[user_id] || getUser(await get('users', user_id)))
+  }
+
+  const updateCash = async({refs, results, dictionary}, func) => {
+    
+    cash[user_id] = func(await getCash((cash) => {
+      return { ...cash,
+        refs: {...cash.refs, ...refs || {}},
+        results: {...cash.results, ...results || {}},
+        dictionary: {...cash.dictionary, ...dictionary || {}}
       }
-      if ( docId && cash[user_id]._id !== docId) await updateValues()
+    }))
+  }
+
+  
+
+    req.user_cash = async(doc) => {
+
+      if (doc && !(cash[user_id] || {})[doc._id]) {
+        const keys = doc.keys.map(({key, _id}) => key || _id).filter(unic)
+        const { refs, dictionary } = cash['admin']
+        cash[user_id] = await getCash((cash) => {
+          const obj = { 
+            results: cash.results || {},
+            refs: {...refs, ...cash.refs},
+            dictionary: {...dictionary, ...cash.dictionary}
+          }
+          return {...obj, [doc._id]: getValues(keys, obj)}
+        }) 
+
+      }
       return {
+        ...doc, 
         ...cash[user_id],
-        values: cash[user_id].values || getValues(),
-        merge: async (user_refs, values) => {
-          const getStr = ({_id, dst}) => _id + dst
-          return update('users', user_id, ({refs, dictionary = [] }) => {
+        getInfo: (keys = []) => {
+          const results = (cur, {result = 0} = {}) => cur += result
+          const total = keys && (keys.reduce(results, 0) / keys.length * 10).toFixed(2)
+          const color = total < 75 ? 'info' : 'success'
+          return {keys: keys.length, color, total: total || 0 }
+        },
+        
+        getObj: (keys) => {
+          const { [doc._id]: values} = cash[user_id]
+          const predicate = (key) => ({_id}) => _id === key
+          return keys.reduce((cur, key) => {
+            return {...cur, [key]: values.filter(predicate(key))}
+          }, {}) 
+        },
+        addValue: (key, value, items) => {
+          
+          const toResult = (cur, {uid, result, active}) => {
+            return active === false ? {...cur, [uid] : undefined} : {...cur, [uid]: result}
+          }
+          const toDictionary = (cur, {_id, dst, exm, pos, snd, trc, uid, active, exclude}) => {
+            return active === false ? {...cur, [uid] : undefined}
+            : {...cur, [uid]: {_id, dst, exm, pos, snd, trc, uid, exclude} }
+          }
+          const dictionary = items.reduce(toDictionary, {})
+          const results = items.reduce(toResult, {})
+          update('users', user_id, (user) => {
             return {
-              refs: Object.assign(user_refs, refs), 
-              dictionary: [...dictionary, ...values].filter(unic2(getStr))
-            }
+              refs: {...user.refs, [key]: value },
+              dictionary: {...user.dictionary, ...dictionary},
+              results: {...user.results, ...results}
+            } 
           })
-          .then((value) => cash[user_id] = value)
+          return updateCash({refs: {[key]: value}, dictionary, results}, (cash) => {
+            const values = cash[doc._id].filter(({_id}) => ![key, value].includes(_id))
+            return {...cash, [doc._id]: [...values, ...getValues([key], cash)] }
+          }) 
+
         },
-        updateValues, 
-        getObj: (keys, {refs = {}, dictionary = []} = cash[user_id]) => {
-          const predicate = (key) => ({_id}) => _id === refs[key]
-          return keys.filter(unic).reduce((cur, key) => refs[key] ? 
-            {...cur, [key]: dictionary.filter(predicate(key))} : cur, {})
-        },
-        addValue: (key, value, values) => {
-          const {refs = {}, dictionary = []} = cash[user_id]
-          const predicate = ({_id}) => _id !== value
-          return updateCash({
-            refs: {...refs, [key]: value},
-            dictionary: [...dictionary.filter(predicate), ...values],
-          })
-        },
-        setValue: ({value}) => {
-          const { dictionary = []} = cash[user_id]
-          const index = dictionary.findIndex(({uid}) => uid === value.uid)
-          value._id ? dictionary.splice(index, 1, value) : dictionary.splice(index, 1)
-          return updateCash({dictionary, card: value})
-        },
-        getCard: () => {
-          const {_id, result = 0} = cash[user_id].card || {}
-          return getCard(result, _id)
-        },
-        getRandom: (number) => {
-          const { dictionary = []} = cash[user_id]
-          return [...Array(number).keys()].map(() => Math.floor(Math.random()*dictionary.length))
-            .filter(unic).map((index) => dictionary[index]).filter(({_id}) => !!_id)
+        getCard,
+        getRandom: (docValues, number) => {
+          return [...Array(number).keys()].map(() => Math.floor(Math.random()*docValues.length))
+            .filter(unic).map((index) => docValues[index]).filter(({_id}) => !!_id)
         }
     }
     }

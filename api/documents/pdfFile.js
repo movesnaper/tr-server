@@ -22,19 +22,16 @@ module.exports = async ({files, body}, res, next) => {
   try {
     const { pdfFile: file } = files || {}
     if (!file) return res.status(404)
-    const {text} = await pdfParse(file)
-  const keys =   getKeys(text).map((item) => {
-    const { str = item, key } = item
-    return { str: str + ' ', key }
-  })
-  // .filter(({str}, index, arr) => {
-  //   const exp = /[0-9\n]/
-  //   return // /^[a-zA-Z0-9 .,:;'"!?\n-]+$/.test(str) 
-  //     // && !(exp.test(str) && exp.test(arr[index + 1]?.str))
-  //     //  && !(exp.test(str) && /[a-z]/.test(arr[index + 1]?.str[0])) 
-  //       // && !(/\d\n/.test(str))
-  // })
-    body.pdfFile = { title: file.name, keys, text }
+      const {data, name: title} = file
+    const ext = title.split('.').pop()
+    const {text} = ext === 'pdf' ? await pdfParse(file) : {text: data.toString()}
+
+    const keys =   getKeys(text).map((item) => {
+      const { str = item, key } = item
+      return { str: str + ' ', key }
+    })
+
+    body.pdfFile = { title, keys }
     next()
   } catch(e) {
     console.log(e);

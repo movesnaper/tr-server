@@ -3,7 +3,7 @@ const axios = require('axios')
 
 const getUid = async (values) => {
   const { uuids } = await nano.uuids(values && values.length)
-  return values.map((v, index) => ({...v, uid: uuids[index]}))
+  return values.map((v, index) => v.uid ? v : ({...v, uid: uuids[index]}))
 }
 
 const bulk = async (dbName, {docs}) => {
@@ -11,8 +11,10 @@ const bulk = async (dbName, {docs}) => {
   return db.bulk({ docs})
 }
 
-const remove = (dbName, {docs}) => {
-  return bulk(dbName, { docs: docs.map((doc) => ({...doc, _deleted: true}))})
+const remove = (dbName, docs) => {
+  return bulk(dbName, { docs: docs.map(({id: _id, value}) => {
+    return { _id, _rev: value.rev, _deleted: true}
+  })})
 }
 
 const insert = async (dbName, doc, id) => {
@@ -22,7 +24,7 @@ const insert = async (dbName, doc, id) => {
 
 const get = async (dbName, id) => {
   const db = nano.use(dbName)
-  return id? db.get(id) : db.list({include_docs: true})
+  return id ? db.get(id) : db.list()
 }
 
 const view = async (path, props, reduce) => {
@@ -36,7 +38,7 @@ const view = async (path, props, reduce) => {
 const update = async (dbName, id, fields) => {
   try {
     const db = id ? await get(dbName, id) : {}
-    const doc = Object.assign(db, fields(db))
+    const doc = Object.assign(db, await fields(db))
     const {id: _id, rev: _rev} = await insert(dbName, doc, id)
     return {...db, _id, _rev}
   } catch (err) {

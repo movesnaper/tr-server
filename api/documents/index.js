@@ -1,16 +1,29 @@
 const express = require('express')
 const router = express.Router()
-const { get, remove, update, getInfo, getUid } = require('./functions')
+const { get, remove, update, getUid } = require('./functions')
 const translate = require('./translate')
-const { keyIsValid, unic2, unic } = require('../filters.js')
-const tmp = {}
+const { unic2, unic, getFilter } = require('../filters.js')
+const uidValues = ({uid, exclude}) => uid && !exclude
 
-router.get('/', async ({user_id}, res) => {
+const tmp = {}
+router.get('/', async ({}, res) => {
   try {
-    const {rows} = await get('documents')
-    const values = [...rows.map(({doc}) => doc), tmp[user_id]].filter((v) => !!v)
-      .map(({ _id: id, title, desc, user_id: user }) => ({ id, title, desc, user }))
-    res.status(200).json({values})
+      const {rows} = await get('documents')
+      res.status(200).json({values: rows.map(({id}) => {
+        const {title, user_id} = tmp[id] || {id}
+        return {id, title, user_id}
+      })})
+  } catch(e) {
+    console.log(e);
+    res.status(500).json(e)
+  }
+}) 
+router.get('/:docId', async ({params}, res) => {
+  try {
+    const { docId } = params
+    const doc = tmp[docId] || await get('documents', docId)
+    const {title, user_id} = tmp[docId] = doc
+    res.status(200).json({id: docId, title, user_id})
   } catch(e) {
     console.log(e);
     res.status(500).json(e)
@@ -19,8 +32,12 @@ router.get('/', async ({user_id}, res) => {
 
 router.get('/info/:docId', async ({ user_cash, params }, res) => {
   try {
-    const {title, values, user_id, keys } =  await user_cash(params)
-    res.status(200).json({...getInfo(values), title, user_id, totalKeys: keys.length})
+    const { docId } = params
+    const doc = tmp[docId] || await get('documents', docId)
+    const { title, user_id, [docId]: values, getInfo, keys } =  await user_cash(doc)
+    const info = getInfo(values.filter(uidValues))
+    tmp[docId] = {...doc, info}
+    res.status(200).json({...info, id: docId, user_id, title, totalKeys: keys.length })
   } catch(e) {
     console.error(e);
     res.status(500).json({err: e })
@@ -28,27 +45,12 @@ router.get('/info/:docId', async ({ user_cash, params }, res) => {
 })
 
 
-router.get('/merge/:docId', async ({ user_cash, params }, res) => {
+router.get('/card/:docId/:result', async ({ user_cash, params }, res) => {
   try {
-    const {keys, user_id, merge } =  await user_cash(params)
-    const {refs: user_refs, dictionary} = await get('users', user_id)
-    const objRefs = (cur, {key}) => ({...cur, [key]: user_refs[key]})
-    const refs = keys.reduce(objRefs, {})
-    const ids = Object.values(refs).filter(unic)
-    const values = dictionary.filter(({_id}) => ids.includes(_id))
-    const result = value => ({...value, result: undefined})
-    await merge(refs, values.map(result))
-    res.status(200).json({ok: true})
-  } catch(e) {
-    console.error(e)
-    res.status(500).json({err: e }) 
-  } 
-}) 
-
-router.get('/card/:docId', async ({ user_cash, params }, res) => {
-  try {
-    const {getCard, getRandom} = await user_cash(params)
-    res.status(200).json({card: getCard(), random: getRandom(5) })
+    const {docId, result = 0} = params
+    const {[docId]: values = [] , getCard, getRandom} = await user_cash(tmp[docId])
+    const docValues = values.filter(uidValues)
+    res.status(200).json({card: getCard(docValues, result), random: getRandom(docValues, 5) })
   } catch(err) {
     console.log(err)
     res.status(500).json({err})
@@ -57,75 +59,75 @@ router.get('/card/:docId', async ({ user_cash, params }, res) => {
 
 router.get('/dictionary/:docId', async ({ query, user_cash, params }, res) => {
   try {
-    const { limit, skip = 0 } = query
-    const { values = []} =  await user_cash(params)
+    const { docId } = params
+    const { limit, skip = 0, filter } = query
+    const { [docId]: values = [] } = await user_cash(tmp[docId])
     const predicate = ({_id: a}, {_id: b}) => (a > b) - (a < b)
-    const sorted = [...values].sort(predicate).splice(skip, limit)
-    res.status(200).json({ values: sorted, skip: (+skip) + (+limit) })
+    const sorted = values.filter(getFilter(filter)).sort(predicate)
+      .map((v, index) => ({...v, index}))
+    const total = sorted.length
+    res.status(200).json({values: sorted.splice(skip, limit), total })
   } catch(err) {
     console.log(err)
     res.status(500).json({err})
   }
-})
- 
-router.post('/results/:docId', async ({ body, user_cash, params }, res) => {
-  try {
-    const { setValue} =  await user_cash(params)
-    res.status(200).json({ rerult: await setValue(body) })
-  } catch(err) {
-    console.log(err);
-    res.status(500).json({ err: true})
-  }
-})
+}) 
+
 
 router.get('/translate/:service/:method/:key', async ({params, user_cash}, res) => {
   try {
     const { service, method, key } = params
-    const { dictionary = []} =  await user_cash(params)
-    const result = [
-      ...(method === 'id' ? dictionary.filter(({_id}) => _id === key) : []),
-      ...await translate[service][method](key) || []
-    ].filter(unic2(({dst}) => dst))
-    res.status(200).json(result)
+    const { dictionary = {}, results = {} } =  await user_cash()
+    const getValues = async () => {
+      switch(method) {
+        case 'key': return await translate[service]['key'](key)
+        case 'id': return [
+          ...Object.values(dictionary)
+            .filter(({_id, exclude} = {}) => _id === key && !exclude)
+            .map((v) => ({...v, result: results[v.uid]})),
+          ...await translate[service]['id'](key) || [],
+        ].filter(unic2(({dst}) => dst))
+      }
+    }
+    res.status(200).json(await getValues())
   } catch(e) {
-    console.log(e);
-    // res.status(500).json(e)
+    console.error(e);
+    res.status(500).json(e)
   }
 }) 
 
 router.get('/text/:docId', async ({ query, user_cash, params }, res) => {
   try {
+    const { docId } = params
     const { limit, mark: skip = 0 } = query
-    const {keys = [], getObj} = await user_cash(params)
-    const values = [...keys].splice(skip, limit) 
-    // .filter(({str}, index, arr) => {
-    //   return !(/[0-9\n]/.test(str) && /[a-z]/.test(arr[index + 1]?.str[0])) 
-    // })
-
-    const obj = getObj(values.map(({key}) => key))
+    const {keys = [], refs, getObj} = await user_cash(tmp[docId])
+    const items = [...keys].splice(skip, limit)
+    const values = items.map((v) => ({...v, _id: refs[v.key]}))
+    const obj = getObj(values.map(({_id}) => _id).filter(unic))
     res.status(200).json({ values, obj, skip: (+skip) + (+limit) })
-  } catch(e) {
+  } catch(e) { 
     console.log(e);
     res.status(500).json({err: true})
   }
 })
-
 router.post('/text/:docId', async ({ body, user_cash, params }, res) => {
   try {
-    const { ref: key, key: value, values } = body
-    const {addValue} = await user_cash(params)
-    addValue(key, value, await getUid(values))
+    const { docId } = params
+    const { key, value, values } = body
+    const {addValue} = await user_cash(tmp[docId])
+    await addValue(key, value || key, await getUid(values))
     res.status(200).json({ ok: true })
   } catch(err) {
     console.log(err);
     res.status(500).json({ err: true})
   }
-}) 
+})
 
 router.post('/text/edit/:docId', async ({ body, user_cash, params }, res) => {
   try {
+    const { docId } = params
     const { mark, start, end } = body
-    const {keys, updateValues} = await user_cash(params)
+    const {keys, updateValues} = await user_cash(tmp[docId])
     keys.splice(mark + start, end - start + 1)    
     await update('documents', params.docId, () => ({ keys })).then(updateValues)
     res.status(200).json({ ok: true })
@@ -138,8 +140,7 @@ router.post('/text/edit/:docId', async ({ body, user_cash, params }, res) => {
 router.delete('/', async ({ body, user_id }, res) => {
   try {
     const { rows } = await get('documents')
-    const docs = rows.filter(({id}) => body.docs.includes(id))
-    await remove('documents', {docs: docs.map(({doc}) => doc)})
+    remove('documents', rows.filter(({id}) => body.docs.includes(id)))
     res.status(200).json({ ok: true })
   } catch(err) {
     console.log(err);
@@ -151,23 +152,22 @@ router.delete('/', async ({ body, user_id }, res) => {
 router.post('/upload', require('./pdfFile.js'), async ({body, user_id}, res) => {
   try {
     const { title, keys = [] } = body?.pdfFile || {}
-    const {length} = keys.filter(({key}) => keyIsValid(key)).filter(unic2(({key}) => key))
-    const desc = `${user_id} keys: ${length}`
-    const {_id: id} = await update('documents', false, () => ({title, desc, keys, user_id}))
-    res.status(200).json({ id, title, desc, user: user_id })
+    const {_id: id} = await update('documents', false, () => ({title, keys, user_id})) || {}
+    res.status(200).json({ id })
+
   } catch(e) {
     console.log(e);
     res.status(500).json({err: true})
   }
-})
+}) 
 
-  router.post('/:docId', async ({ user_id, body, params, user_cash }, res) => {
-    
+  router.post('/:docId', async ({ body, params }, res) => {
+     
     try {
-      const { title, desc } = body
-      const {updateValues} = await user_cash(params)
-      await update('documents', params.docId, () => ({title, desc, user_id}))
-      .then(updateValues)
+      const { docId } = params
+      const { title } = body
+      await update('documents', docId, () => ({title}))
+      tmp[docId] = {...tmp[docId], title}
       res.status(200).json({ ok: true })
     } catch(err) {
       console.log(err);
