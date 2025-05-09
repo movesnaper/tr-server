@@ -9,14 +9,17 @@ const latinChars = (v) => /^[a-zA-Z_]+$/.test(v)
 const excludes = (keys) => (key) => !keys.includes(key)
 const keyIsValid = (key) => key && key.length >= 3 && latinChars(key)
 && !['the'].includes(key)
-const getFilter = (key) => {
-  switch (key) {
-    // case false : return (v) => v
-    case 'hasValue' : return ({uid, exclude}) => uid && !exclude
-    case 'hasNoValue' : return ({uid}) => !uid
-    case 'isExclude' : return ({exclude}) => !!exclude
-    default : return () => true
+const getFilter = (filter, search) => {
+  const testfilter = ({uid, exclude}) => {
+    switch (filter) {
+      case 'hasValue' : return uid && !exclude
+      case 'hasNoValue' : return !uid
+      case 'isExclude' : return !!exclude
+      default : return true
+    }
   }
+  return (v) => testfilter(v) && search(v)
+
 }
 
 module.exports = {

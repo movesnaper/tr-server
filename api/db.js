@@ -27,6 +27,11 @@ const get = async (dbName, id) => {
   return id ? db.get(id) : db.list()
 }
 
+const list = async (dbName, params) => {
+  const db = nano.use(dbName)
+  return db.list(params)
+}
+
 const view = async (path, props, reduce) => {
   const [dbName, designname , viewname] = path.split("/")
   const db = nano.use(dbName)
@@ -56,5 +61,6 @@ module.exports = {
   get,
   update,
   remove,
-  getUid
+  getUid,
+  list
 }

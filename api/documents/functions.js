@@ -1,4 +1,4 @@
-const { getUid, get, view, insert, update, remove } = require('../db')
+const { list, getUid, get, view, insert, update, remove } = require('../db')
 
 
 
@@ -7,7 +7,7 @@ module.exports = {
   get,
   view, 
   insert,
-  // getInfo,
+  list,
   update,
   remove
 }

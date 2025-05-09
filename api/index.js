@@ -58,8 +58,6 @@ const userCash = async (req, res, next) => {
     }))
   }
 
-  
-
     req.user_cash = async(doc) => {
 
       if (doc && !(cash[user_id] || {})[doc._id]) {
